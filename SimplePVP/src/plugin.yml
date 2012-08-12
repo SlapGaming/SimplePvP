@@ -1,0 +1,12 @@
+name: SimplePvP
+main: me.naithantu.SimplePVP.SimplePVP
+author: naithantu
+version: 0.5.3
+depend: [Vault]
+description: Simple PvP system.
+commands:
+  leave:
+    description: Leave the pvp world.
+  pvp:
+    description: SimplePvP command. Check command help for more info.
+    usage: Error in command syntax. Check command help for more info.
