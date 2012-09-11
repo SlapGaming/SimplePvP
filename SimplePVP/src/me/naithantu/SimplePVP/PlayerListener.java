@@ -43,40 +43,90 @@ public class PlayerListener implements Listener {
 		final List<String> blue = plugin.getBlue();
 		String selectedMap = plugin.getSelectedMap();
 		Integer id = null;
-		if (plugin.getRespawnTimer() == 0) {
+		// Give items back.
+		if (plugin.getDeathTypeDrop().equals("disabled")) {
+			plugin.giveItems(player);
+		}
+
+		//Respawn to speclocation if the game is not playing.
+		if (plugin.getIsPlaying() == false || plugin.getBetweenRounds() == true) {
+			if (event == null) {
+				player.teleport(plugin.getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(plugin.getConfigLocation(selectedMap, "speclocation"));
+			}
+			return null;
+		}
+
+		//Respawn to speclocation if the gamemode is lms.
+		if (plugin.getGameMode().equals("lms")) {
 			if (red.contains(player.getName())) {
-				event.setRespawnLocation(plugin.respawn(player));
+				plugin.getPlayersRespawningRed().add(player.getName());
+				player.sendMessage(header + "You will respawn next round!");
 			} else if (blue.contains(player.getName())) {
-				event.setRespawnLocation(plugin.respawn(player));
+				plugin.getPlayersRespawningBlue().add(player.getName());
+				player.sendMessage(header + "You will respawn next round!");
+			}
+			if (event == null) {
+				player.teleport(plugin.getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(plugin.getConfigLocation(selectedMap, "speclocation"));
+			}
+			return null;
+		}
+
+		if (plugin.getRespawnTimer() == 0) {
+			if (red.contains(player.getName()) || blue.contains(player.getName())) {
+				if (event == null) {
+					player.teleport(plugin.respawn(player));
+				} else {
+					event.setRespawnLocation(plugin.respawn(player));
+				}
 			}
 		} else {
 			// Respawn with respawntimer.
-			final List<String> playersRespawningRed = plugin.getPlayersRespawningRed();
-			final List<String> playersRespawningBlue = plugin.getPlayersRespawningBlue();
-			event.setRespawnLocation(plugin.getConfigLocation(selectedMap, "speclocation"));
-			playersRespawningRed.add(player.getName());
-			player.sendMessage(ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "You will respawn in " + plugin.getRespawnTimer() / 20 + " seconds!");
-			id = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
-				public void run() {
-					if (red.contains(player.getName())) {
-						Player respawnedPlayer = plugin.getServer().getPlayer(plugin.getPlayersRespawningRed().get(0));
-						playersRespawningRed.remove(0);
-						plugin.setPlayersRespawningRed(playersRespawningRed);
-						respawnedPlayer.teleport(plugin.respawn(respawnedPlayer));
-					} else if (blue.contains(player.getName())) {
-						Player respawnedPlayer = plugin.getServer().getPlayer(plugin.getPlayersRespawningBlue().get(0));
-						respawnedPlayer.teleport(plugin.respawn(respawnedPlayer));
-						playersRespawningBlue.remove(0);
-						plugin.setPlayersRespawningBlue(playersRespawningBlue);
-					}
-					HashMap<String, Integer> respawnTimers = plugin.getRespawnTimers();
-					respawnTimers.remove(player.getName());
-					plugin.setRespawnTimers(respawnTimers);
-				}
-			}, plugin.getRespawnTimer());
+			if (event == null) {
+				player.teleport(plugin.getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(plugin.getConfigLocation(selectedMap, "speclocation"));
+			}
+			id = respawnScheduler(player);
 		}
 		return id;
 
+	}
+
+	public Integer respawnScheduler(final Player player) {
+		final List<String> playersRespawningRed = plugin.getPlayersRespawningRed();
+		final List<String> playersRespawningBlue = plugin.getPlayersRespawningBlue();
+		final List<String> red = plugin.getRed();
+		final List<String> blue = plugin.getBlue();
+
+		if (red.contains(player.getName())) {
+			playersRespawningRed.add(player.getName());
+		} else if (blue.contains(player.getName())) {
+			playersRespawningBlue.add(player.getName());
+		}
+		player.sendMessage(ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "You will respawn in " + plugin.getRespawnTimer() / 20 + " seconds!");
+		Integer id = plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+			public void run() {
+				if (red.contains(player.getName())) {
+					Player respawnedPlayer = plugin.getServer().getPlayer(plugin.getPlayersRespawningRed().get(0));
+					playersRespawningRed.remove(0);
+					plugin.setPlayersRespawningRed(playersRespawningRed);
+					respawnedPlayer.teleport(plugin.respawn(respawnedPlayer));
+				} else if (blue.contains(player.getName())) {
+					Player respawnedPlayer = plugin.getServer().getPlayer(plugin.getPlayersRespawningBlue().get(0));
+					respawnedPlayer.teleport(plugin.respawn(respawnedPlayer));
+					playersRespawningBlue.remove(0);
+					plugin.setPlayersRespawningBlue(playersRespawningBlue);
+				}
+				HashMap<String, Integer> respawnTimers = plugin.getRespawnTimers();
+				respawnTimers.remove(player.getName());
+				plugin.setRespawnTimers(respawnTimers);
+			}
+		}, plugin.getRespawnTimer());
+		return id;
 	}
 
 	public ItemStack getHelmet(String team) {
@@ -137,11 +187,15 @@ public class PlayerListener implements Listener {
 				List<String> playersRespawningRed = plugin.getPlayersRespawningRed();
 				List<String> playersRespawningBlue = plugin.getPlayersRespawningBlue();
 				if (playersRespawningRed.contains(player.getName())) {
-					playersRespawningRed.remove(0);
+					playersRespawningRed.remove(player.getName());
 					plugin.setPlayersRespawningRed(playersRespawningRed);
+					plugin.getServer().getScheduler().cancelTask(plugin.getRespawnTimers().get(player.getName()));
+					plugin.getRespawnTimers().remove(player.getName());
 				} else if (playersRespawningBlue.contains(player.getName())) {
-					playersRespawningBlue.remove(0);
+					playersRespawningBlue.remove(player.getName());
 					plugin.setPlayersRespawningBlue(playersRespawningBlue);
+					plugin.getServer().getScheduler().cancelTask(plugin.getRespawnTimers().get(player.getName()));
+					plugin.getRespawnTimers().remove(player.getName());
 				}
 			}
 			// if (!(econ.getBalance(player.getName()) < 25))
@@ -199,12 +253,28 @@ public class PlayerListener implements Listener {
 					}
 				}
 			} else if (plugin.getGameMode().equals("lms")) {
-				if (red.size() - plugin.getPlayersRespawningRed().size() + blue.size() + plugin.getPlayersRespawningBlue().size() == 1) {
-					if (red.size() == 1) {
+				int totalAlive = 0;
+				String winnerName = null;
+				for (String playerName : red) {
+					if (!plugin.getServer().getPlayer(playerName).isDead() && !plugin.getPlayersRespawningRed().contains(playerName)) {
+						winnerName = playerName;
+						totalAlive++;
+					}
+				}
+				for (String playerName : blue) {
+					if (!plugin.getServer().getPlayer(playerName).isDead() && !plugin.getPlayersRespawningBlue().contains(playerName)) {
+						winnerName = playerName;
+						totalAlive++;
+					}
+				}
+				if (totalAlive == 1) {
+					if (red.contains(winnerName)) {
 						plugin.sendMessageAll(header + "The round is over, " + red.get(0) + " won the round!");
-					} else if (blue.size() == 1) {
+					} else if (blue.contains(winnerName)) {
 						plugin.sendMessageAll(header + "The round is over, " + blue.get(0) + " won the round!");
 					}
+					plugin.getPlayersRespawningRed().clear();
+					plugin.getPlayersRespawningBlue().clear();
 					plugin.nextRound();
 				}
 			}
@@ -226,36 +296,10 @@ public class PlayerListener implements Listener {
 		}
 		List<String> blue = plugin.getBlue();
 		List<String> red = plugin.getRed();
-		if (red.contains(player.getName()) || blue.contains(player.getName())) { // || redOut.contains(player.getName()) || blueOut.contains(player.getName())
-			final String selectedMap = plugin.getSelectedMap();
-
-			// Give items back.
-			if (plugin.getDeathTypeDrop().equals("disabled")) {
-				plugin.giveItems(player);
-			}
-
-			//Respawn to speclocation if the game is not playing.
-			if (plugin.getIsPlaying() == false || plugin.getBetweenRounds() == true) {
-				event.setRespawnLocation(plugin.getConfigLocation(selectedMap, "speclocation"));
-				return;
-			}
-
-			//Respawn to speclocation if the gamemode is lms.
-			if (plugin.getGameMode().equals("lms")) {
-				if (red.contains(player.getName())) {
-					plugin.getPlayersRespawningRed().add(player.getName());
-					player.sendMessage(header + "You will respawn next round!");
-				} else if (blue.contains(player.getName())) {
-					plugin.getPlayersRespawningBlue().add(player.getName());
-					player.sendMessage(header + "You will respawn next round!");
-				}
-			}
-
-			//Respawn for non-lms gamemodes.
-			int id = respawnTimer(player, event);
-			plugin.getRespawnTimers().put(player.getName(), id);
-			plugin.setRed(red);
-			plugin.setBlue(blue);
+		if (red.contains(player.getName()) || blue.contains(player.getName())) {
+			Integer id = respawnTimer(player, event);
+			if (id != null)
+				plugin.getRespawnTimers().put(player.getName(), id);
 		}
 	}
 
@@ -351,43 +395,18 @@ public class PlayerListener implements Listener {
 		String playerName = event.getPlayer().getName();
 		List<String> blue = plugin.getBlue();
 		List<String> red = plugin.getRed();
-		List<String> offlineRedInGame = plugin.getOfflineRedInGame();
-		List<String> offlineBlueInGame = plugin.getOfflineBlueInGame();
 		List<String> spectate = plugin.getSpectate();
 		List<String> playersRespawningRed = plugin.getPlayersRespawningRed();
 		List<String> playersRespawningBlue = plugin.getPlayersRespawningBlue();
 		World world = plugin.getServer().getWorld("world");
 		//Add the player to the offline group (in red/blue team). Or completely remove from group and teleport to spawn.
-		if (red.contains(playerName)) {
-			plugin.emptyInventory(player);
+		if (red.contains(playerName) || blue.contains(playerName) || playersRespawningRed.contains(playerName) || playersRespawningBlue.contains(playerName)) {
+			plugin.logOffMidGame(player);
 			player.teleport(world.getSpawnLocation());
-			offlineRedInGame.add(playerName);
-			red.remove(playerName);
-		} else if (blue.contains(playerName)) {
-			plugin.emptyInventory(player);
-			player.teleport(world.getSpawnLocation());
-			offlineBlueInGame.add(playerName);
-			blue.remove(playerName);
 		} else if (spectate.contains(playerName)) {
-			player.teleport(plugin.getServer().getWorld("world").getSpawnLocation());
-			plugin.emptyInventory(player);
-			spectate.remove(playerName);
-		} else if (playersRespawningRed.contains(playerName)) {
-
-		} else if (playersRespawningBlue.contains(playerName)) {
-
+			plugin.leaveGame(playerName);
+			player.teleport(world.getSpawnLocation());
 		}
-
-		/*
-		 * else if (redOut.contains(playerName)) {
-		 * player.teleport(plugin.getServer
-		 * ().getWorld("world").getSpawnLocation());
-		 * plugin.emptyInventory(player); redOut.remove(playerName); } else if
-		 * (blueOut.contains(playerName)) {
-		 * player.teleport(plugin.getServer().getWorld
-		 * ("world").getSpawnLocation()); plugin.emptyInventory(player);
-		 * blueOut.remove(playerName); }
-		 */
 		//Return flag if player disconnects with the flag.
 		if (plugin.getGameMode().equals("ctf")) {
 			if (plugin.getRedFlagTaken() != null) {
@@ -408,22 +427,28 @@ public class PlayerListener implements Listener {
 
 	@EventHandler
 	public void onPlayerLogIn(PlayerJoinEvent event) {
-		Player player = event.getPlayer();
-		String playerName = event.getPlayer().getName();
-		List<String> blue = plugin.getBlue();
+		final Player player = event.getPlayer();
+		List<String> offlineRed = plugin.getOfflineRed();
+		List<String> offlineBlue = plugin.getOfflineBlue();
 		List<String> red = plugin.getRed();
-		List<String> offlineRedInGame = plugin.getOfflineRedInGame();
-		List<String> offlineBlueInGame = plugin.getOfflineBlueInGame();
+		List<String> blue = plugin.getBlue();
 		//Teleport players which were in the offline list to their teams spawn. or to spawn if the game has ended.
-		if (offlineRedInGame.contains(playerName)) {
-			player.teleport(plugin.respawn(player));
-			red.add(playerName);
-			offlineRedInGame.remove(playerName);
-		} else if (offlineBlueInGame.contains(playerName)) {
-			player.teleport(plugin.respawn(player));
-			blue.add(playerName);
-			offlineBlueInGame.remove(playerName);
+		if(offlineRed.contains(player.getName())){
+			red.add(player.getName());
+			offlineRed.remove(player.getName());
+		}else if(offlineBlue.contains(player.getName())){
+			blue.add(player.getName());
+			offlineBlue.remove(player.getName());
 		}
+		plugin.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
+			@Override
+			public void run() {
+				if (plugin.checkInGame(player) == true) {
+					player.teleport(plugin.respawn(player));
+					respawnTimer(player, null);
+				}
+			}
+		},1);
 	}
 
 	@EventHandler
@@ -435,7 +460,7 @@ public class PlayerListener implements Listener {
 			return;
 		}
 		//Cancel out of bounds area if player is dead/match not playing/player respawning/between rounds.
-		if (plugin.getOutOfBoundsArea().equals("enabled") && plugin.getIsPlaying() == true && !player.isDead() && !plugin.getRespawnTimers().containsKey(player.getName()) && plugin.getBetweenRounds() == false) {
+		if (plugin.getOutOfBoundsArea().equals("enabled") && plugin.getIsPlaying() == true && !player.isDead() && !plugin.getPlayersRespawningBlue().contains(player.getName()) && !plugin.getPlayersRespawningRed().contains(player.getName()) && plugin.getBetweenRounds() == false) {
 			Location outOfBoundsLocation1 = plugin.getOutOfBoundsLocation1();
 			Location outOfBoundsLocation2 = plugin.getOutOfBoundsLocation2();
 			Double x = player.getLocation().getX();
@@ -444,29 +469,34 @@ public class PlayerListener implements Listener {
 
 			if (x < outOfBoundsLocation1.getX() || x > outOfBoundsLocation2.getX() || y < outOfBoundsLocation1.getY() || y > outOfBoundsLocation2.getY() || z < outOfBoundsLocation1.getZ() || z > outOfBoundsLocation2.getZ()) {
 				if (!outOfBoundsTimer.containsKey(player.getName())) {
-					int id = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new Runnable() {
-						Integer timeLeft = null;
+					if (plugin.getOutOfBoundsTime() == 0) {
+						player.damage(20);
+						player.sendMessage(header + ChatColor.RED + "You left the combat area, you have been killed!");
+					} else {
+						int id = plugin.getServer().getScheduler().scheduleSyncRepeatingTask(plugin, new Runnable() {
+							Integer timeLeft = null;
 
-						@Override
-						public void run() {
-							if (!outOfBounds.containsKey(player.getName())) {
-								timeLeft = plugin.getOutOfBoundsTime() + 1;
-							} else {
-								timeLeft = outOfBounds.get(player.getName());
+							@Override
+							public void run() {
+								if (!outOfBounds.containsKey(player.getName())) {
+									timeLeft = plugin.getOutOfBoundsTime() + 1;
+								} else {
+									timeLeft = outOfBounds.get(player.getName());
+								}
+								timeLeft--;
+								if (timeLeft == 0) {
+									player.damage(20);
+									plugin.getServer().getScheduler().cancelTask(outOfBoundsTimer.get(player.getName()));
+									outOfBounds.remove(player.getName());
+									outOfBoundsTimer.remove(player.getName());
+								} else {
+									outOfBounds.put(player.getName(), timeLeft);
+									player.sendMessage(header + ChatColor.RED + "You have " + timeLeft + " seconds to return to the combat area!");
+								}
 							}
-							timeLeft--;
-							if (timeLeft == 0) {
-								player.damage(20);
-								plugin.getServer().getScheduler().cancelTask(outOfBoundsTimer.get(player.getName()));
-								outOfBounds.remove(player.getName());
-								outOfBoundsTimer.remove(player.getName());
-							} else {
-								outOfBounds.put(player.getName(), timeLeft);
-								player.sendMessage(header + ChatColor.RED + "You have " + timeLeft + " seconds to return to the combat area!");
-							}
-						}
-					}, 0, 20);
-					outOfBoundsTimer.put(player.getName(), id);
+						}, 0, 20);
+						outOfBoundsTimer.put(player.getName(), id);
+					}
 				}
 			} else {
 				if (outOfBoundsTimer.containsKey(player.getName())) {

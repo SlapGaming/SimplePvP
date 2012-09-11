@@ -1,7 +1,7 @@
 name: SimplePvP
 main: me.naithantu.SimplePVP.SimplePVP
 author: naithantu
-version: 0.5.3
+version: 0.6.1
 depend: [Vault]
 description: Simple PvP system.
 commands:
