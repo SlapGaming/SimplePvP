@@ -1,4 +1,4 @@
-package me.naithantu.SimplePVP.Commands;
+package me.naithantu.SimplePVP.commands;
 
 import java.util.ArrayList;
 import java.util.Iterator;

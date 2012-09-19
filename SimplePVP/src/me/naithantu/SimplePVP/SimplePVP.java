@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import me.naithantu.SimplePVP.commands.AdminCommands;
 import net.milkbowl.vault.economy.Economy;
 
 import org.bukkit.Bukkit;
@@ -48,8 +49,8 @@ public class SimplePVP extends JavaPlugin {
 	// Team Variables
 	List<String> blue = new ArrayList<String>();
 	List<String> red = new ArrayList<String>();
-	List<String> allChat = new ArrayList<String>();
-	List<String> teamChat = new ArrayList<String>();
+	public List<String> allChat = new ArrayList<String>();
+	public List<String> teamChat = new ArrayList<String>();
 	List<String> spectate = new ArrayList<String>();
 	List<String> offlineRed = new ArrayList<String>();
 	List<String> offlineBlue = new ArrayList<String>();
@@ -61,16 +62,16 @@ public class SimplePVP extends JavaPlugin {
 	//Set<String> mapNames = new HashSet<String>();
 	HashMap<String, String> maps = new HashMap<String, String>();
 	public String selectedMap;
-	Boolean allowJoin = false;
+	public Boolean allowJoin = false;
 
 	// Temporary Variables
 	boolean betweenRounds = false;
 	int round;
 	String mapName;
 	String mapNick;
-	HashSet<String> invites = new HashSet<String>();
+	public HashSet<String> invites = new HashSet<String>();
 	ArrayList<String> tempArrayList = new ArrayList<String>();
-	Boolean isPlaying = false;
+	public Boolean isPlaying = false;
 	int redSpawnLocations = 0;
 	int blueSpawnLocations = 0;
 	int roundTimer;
@@ -103,11 +104,11 @@ public class SimplePVP extends JavaPlugin {
 	public int betweenRoundTime = 10;
 
 	// Gamemode Variables
-	int redScore = 0;
-	int blueScore = 0;
+	public int redScore = 0;
+	public int blueScore = 0;
 	// CTF
-	String redFlagTaken;
-	String blueFlagTaken;
+	public String redFlagTaken;
+	public String blueFlagTaken;
 	String attacking = "red";
 	public int creation = 0;
 	

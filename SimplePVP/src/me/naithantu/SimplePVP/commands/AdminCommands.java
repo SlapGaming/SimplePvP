@@ -1,8 +1,10 @@
-package me.naithantu.SimplePVP;
+package me.naithantu.SimplePVP.commands;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import me.naithantu.SimplePVP.SimplePVP;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -14,7 +16,7 @@ import org.bukkit.entity.Player;
 public class AdminCommands implements CommandExecutor{
 
 	SimplePVP plugin;
-	AdminCommands(SimplePVP instance) {
+	public AdminCommands(SimplePVP instance) {
 		plugin = instance;
 	}
 	

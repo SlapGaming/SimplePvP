@@ -1,8 +1,12 @@
 package me.naithantu.SimplePVP;
 
+import gameModes.GameModeHandler;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+
+import me.naithantu.SimplePVP.commands.AdminCommands;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -17,7 +21,7 @@ import org.bukkit.event.block.BlockRedstoneEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -27,6 +31,9 @@ import org.bukkit.inventory.ItemStack;
 public class PlayerListener implements Listener {
 
 	SimplePVP plugin;
+	AdminCommands adminCommands;
+	GameModeHandler gameModeHandler;
+	
 	HashMap<String, Integer> outOfBoundsTimer = new HashMap<String, Integer>();
 	HashMap<String, Integer> outOfBounds = new HashMap<String, Integer>();
 	Boolean team1Activated = false;
@@ -34,6 +41,14 @@ public class PlayerListener implements Listener {
 
 	PlayerListener(SimplePVP instance) {
 		plugin = instance;
+	}
+	
+	PlayerListener(AdminCommands instance) {
+		adminCommands = instance;
+	}
+	
+	PlayerListener(GameModeHandler instance){
+		gameModeHandler = instance;
 	}
 
 	String header = ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "";
@@ -461,8 +476,8 @@ public class PlayerListener implements Listener {
 		}
 		//Cancel out of bounds area if player is dead/match not playing/player respawning/between rounds.
 		if (plugin.getOutOfBoundsArea().equals("enabled") && plugin.getIsPlaying() == true && !player.isDead() && !plugin.getPlayersRespawningBlue().contains(player.getName()) && !plugin.getPlayersRespawningRed().contains(player.getName()) && plugin.getBetweenRounds() == false) {
-			Location outOfBoundsLocation1 = plugin.getOutOfBoundsLocation1();
-			Location outOfBoundsLocation2 = plugin.getOutOfBoundsLocation2();
+			Location outOfBoundsLocation1 = adminCommands.getOutOfBoundsLocation(1);
+			Location outOfBoundsLocation2 = adminCommands.getOutOfBoundsLocation(2);
 			Double x = player.getLocation().getX();
 			Double y = player.getLocation().getY();
 			Double z = player.getLocation().getZ();
@@ -598,7 +613,7 @@ public class PlayerListener implements Listener {
 		}
 	}
 	@EventHandler
-	public void onPlayerChat(PlayerChatEvent event) {
+	public void onPlayerChat(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
 		List<String> teamChat = plugin.getTeamChat();
 		List<String> allChat = plugin.getAllChat();

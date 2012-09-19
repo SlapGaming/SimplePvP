@@ -1,6 +1,8 @@
-package me.naithantu.SimplePVP;
+package me.naithantu.SimplePVP.commands;
 
 import java.util.List;
+
+import me.naithantu.SimplePVP.SimplePVP;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -247,6 +249,7 @@ public class PlayerCommands implements CommandExecutor{
 			}
 		}
 	}
+	return false;
 }
 
 	
