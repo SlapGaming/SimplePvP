@@ -10,9 +10,18 @@ import java.util.Random;
 import java.util.Set;
 
 import me.naithantu.SimplePVP.commands.AdminCommands;
+import me.naithantu.SimplePVP.commands.ModCommands;
+import me.naithantu.SimplePVP.commands.PlayerCommands;
+import me.naithantu.SimplePVP.listeners.ChatListener;
+import me.naithantu.SimplePVP.listeners.DamageListener;
+import me.naithantu.SimplePVP.listeners.DeathListener;
+import me.naithantu.SimplePVP.listeners.JoinListener;
+import me.naithantu.SimplePVP.listeners.MoveListener;
+import me.naithantu.SimplePVP.listeners.QuitListener;
+import me.naithantu.SimplePVP.listeners.RedstoneListener;
+import me.naithantu.SimplePVP.listeners.RespawnListener;
 import net.milkbowl.vault.economy.Economy;
 
-import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -20,28 +29,38 @@ import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.google.common.base.Joiner;
-
 public class SimplePVP extends JavaPlugin {
 
+	PlayerCommands playerCommandHandler = new PlayerCommands(this);
+	ModCommands modCommandHandler = new ModCommands(this);
+	AdminCommands adminCommandHandler = new AdminCommands(this);
+
+	HashMap<String, PlayerScore> playerScores = new HashMap<String, PlayerScore>();
+
+	Settings settings;
 	public Configuration config;
-	static Economy econ = null;
+	public static Economy econ = null;
 	PluginManager pm;
-	public final PlayerListener playerListener = new PlayerListener(this);
+	public final ChatListener chatListener = new ChatListener(this);
+	public final DamageListener damageListener = new DamageListener(this);
+	public final DeathListener deathListener = new DeathListener(this);
+	public final JoinListener joinListener = new JoinListener(this);
+	public final MoveListener moveListener = new MoveListener(this);
+	public final QuitListener quitListener = new QuitListener(this);
+	public final RedstoneListener redstoneListener = new RedstoneListener(this);
+	public final RespawnListener respawnListener = new RespawnListener(this);
 
 	String header = ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "";
 
-	AdminCommands adminCommands = new AdminCommands(this);
-	
 	// /leave Variables
 	public HashSet<String> pvpWorld = new HashSet<String>();
 	public HashSet<String> pvpTimer = new HashSet<String>();
@@ -61,8 +80,6 @@ public class SimplePVP extends JavaPlugin {
 	// Map info
 	//Set<String> mapNames = new HashSet<String>();
 	HashMap<String, String> maps = new HashMap<String, String>();
-	public String selectedMap;
-	public Boolean allowJoin = false;
 
 	// Temporary Variables
 	boolean betweenRounds = false;
@@ -71,37 +88,14 @@ public class SimplePVP extends JavaPlugin {
 	String mapNick;
 	public HashSet<String> invites = new HashSet<String>();
 	ArrayList<String> tempArrayList = new ArrayList<String>();
-	public Boolean isPlaying = false;
 	int redSpawnLocations = 0;
 	int blueSpawnLocations = 0;
 	int roundTimer;
 	boolean updatedTimer;
 	HashMap<String, Integer> respawnTimers = new HashMap<String, Integer>();
-	// HashMap<String, ItemStack[]> deathContents = new HashMap<String,
-	// ItemStack[]>();
-	// HashMap<String, ItemStack[]> deathArmor = new HashMap<String,
-	// ItemStack[]>();
 
-	// Types
-	public String joinType = "freejoin";
-	public String gameMode = "none";
-	public String friendlyFire = "disabled";
-	public String deathTypeDrop = "disabled";
-	public int respawnTimer = 0;
-	public int deathTypePay = 0;
 	public ItemStack[] redInv;
 	public ItemStack[] blueInv;
-	public int scoreLimit = 10;
-	public int maxPlayers = 0;
-	public int roundTime = 0;
-	public String randomSpawnPoints = "enabled";
-	public String joinMidGame = "disabled";
-	public String forcePvpChat = "enabled";
-	public String outOfBoundsArea = "disabled";
-	public int outOfBoundsTime = 5;
-	public String autoBalance = "enabled";
-	public int roundLimit = 1;
-	public int betweenRoundTime = 10;
 
 	// Gamemode Variables
 	public int redScore = 0;
@@ -111,26 +105,24 @@ public class SimplePVP extends JavaPlugin {
 	public String blueFlagTaken;
 	String attacking = "red";
 	public int creation = 0;
-	
+
+	public Settings getSettings() {
+		return settings;
+	}
+
 	//Getters and setters
-	public String getHeader(){
+	public String getHeader() {
 		return header;
 	}
-	public void setOutOfBoundsArea(String outOfBoundsArea){
-		this.outOfBoundsArea = outOfBoundsArea;
+
+	public HashMap<String, PlayerScore> getPlayerScores() {
+		return playerScores;
 	}
-	
-	public void setGameMode(String gameMode){
-		this.gameMode = gameMode;
-	}
-	public void setSelectedMap(String selectedMap){
-		this.selectedMap = selectedMap;
-	}
-	
+
 	public HashMap<String, String> getMaps() {
 		return maps;
 	}
-	
+
 	public HashSet<String> getPvpWorld() {
 		return pvpWorld;
 	}
@@ -152,9 +144,6 @@ public class SimplePVP extends JavaPlugin {
 	public void setBlueFlagTaken(String blueFlagTaken) {
 		this.blueFlagTaken = blueFlagTaken;
 	}
-	public int getScoreLimit() {
-		return scoreLimit;
-	}
 	public int getRedScore() {
 		return redScore;
 	}
@@ -167,27 +156,6 @@ public class SimplePVP extends JavaPlugin {
 	public void setBlueScore(int blueScore) {
 		this.blueScore = blueScore;
 	}
-	public String getDeathTypeDrop() {
-		return deathTypeDrop;
-	}
-	public int getDeathTypePay() {
-		return deathTypePay;
-	}
-	public int getRespawnTimer() {
-		return respawnTimer;
-	}
-	public String getFriendlyFire() {
-		return friendlyFire;
-	}
-	public Boolean getAllowJoin() {
-		return allowJoin;
-	}
-	public String getGameMode() {
-		return gameMode;
-	}
-	public String getSelectedMap() {
-		return selectedMap;
-	}
 	public List<String> getBlue() {
 		return blue;
 	}
@@ -196,9 +164,6 @@ public class SimplePVP extends JavaPlugin {
 	}
 	public int getRound() {
 		return round;
-	}
-	public String getOutOfBoundsArea() {
-		return outOfBoundsArea;
 	}
 	/*
 	 * public List<ItemStack> getRedArmour() { return redArmour; } public
@@ -222,9 +187,7 @@ public class SimplePVP extends JavaPlugin {
 	public void setPlayersRespawningBlue(List<String> playersRespawningBlue) {
 		this.playersRespawningBlue = playersRespawningBlue;
 	}
-	public boolean getIsPlaying() {
-		return isPlaying;
-	}
+
 	public List<String> getSpectate() {
 		return spectate;
 	}
@@ -237,17 +200,12 @@ public class SimplePVP extends JavaPlugin {
 	public List<String> getTeamChat() {
 		return teamChat;
 	}
-	public void setIsPlaying(boolean isPlaying) {
-		this.isPlaying = isPlaying;
-	}
+
 	public void setRed(List<String> red) {
 		this.red = red;
 	}
 	public void setBlue(List<String> blue) {
 		this.blue = blue;
-	}
-	public int getOutOfBoundsTime() {
-		return outOfBoundsTime;
 	}
 	public boolean getBetweenRounds() {
 		return betweenRounds;
@@ -258,18 +216,143 @@ public class SimplePVP extends JavaPlugin {
 	public void setRespawnTimers(HashMap<String, Integer> respawnTimers) {
 		this.respawnTimers = respawnTimers;
 	}
-	
+
 	public void onEnable() {
 		config = this.getConfig();
+		settings = new Settings(this);
 		loadMapNames();
 		setupEconomy();
 		pm = getServer().getPluginManager();
-		pm.registerEvents(this.playerListener, this);
+		pm.registerEvents(this.chatListener, this);
+		pm.registerEvents(this.damageListener, this);
+		pm.registerEvents(this.deathListener, this);
+		pm.registerEvents(this.joinListener, this);
+		pm.registerEvents(this.moveListener, this);
+		pm.registerEvents(this.quitListener, this);
+		pm.registerEvents(this.redstoneListener, this);
+		pm.registerEvents(this.respawnListener, this);
+		settings.resetSettings();
 	}
 
 	public void onDisable() {
 		saveMapNames();
 		saveConfig();
+	}
+
+	public Integer respawnTimer(final Player player, PlayerRespawnEvent event) {
+		String selectedMap = settings.getStringSetting("selectedMap");
+		Integer id = null;
+		// Give items back.
+		if (settings.getBooleanSetting("deathTypeDrop") == false) {
+			giveItems(player);
+		}
+
+		//Respawn to speclocation if the game is not playing.
+		if (settings.getBooleanSetting("isPlaying") == false || getBetweenRounds() == true) {
+			if (event == null) {
+				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(getConfigLocation(selectedMap, "speclocation"));
+			}
+			return null;
+		}
+
+		//Respawn to speclocation if the gamemode is lms.
+		if (settings.getStringSetting("gameMode").equals("lms")) {
+			if (red.contains(player.getName())) {
+				getPlayersRespawningRed().add(player.getName());
+				player.sendMessage(header + "You will respawn next round!");
+			} else if (blue.contains(player.getName())) {
+				getPlayersRespawningBlue().add(player.getName());
+				player.sendMessage(header + "You will respawn next round!");
+			}
+			if (event == null) {
+				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(getConfigLocation(selectedMap, "speclocation"));
+			}
+			return null;
+		}
+
+		if (settings.getIntSetting("respawnTimer") == 0) {
+			if (red.contains(player.getName()) || blue.contains(player.getName())) {
+				if (event == null) {
+					player.teleport(respawn(player));
+				} else {
+					event.setRespawnLocation(respawn(player));
+				}
+			}
+		} else {
+			// Respawn with respawntimer.
+			if (event == null) {
+				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+			} else {
+				event.setRespawnLocation(getConfigLocation(selectedMap, "speclocation"));
+			}
+			id = respawnScheduler(player);
+		}
+		return id;
+	}
+
+	public Integer respawnScheduler(final Player player) {
+		if (red.contains(player.getName())) {
+			playersRespawningRed.add(player.getName());
+		} else if (blue.contains(player.getName())) {
+			playersRespawningBlue.add(player.getName());
+		}
+		player.sendMessage(ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "You will respawn in " + settings.getIntSetting("respawnTimer") / 20 + " seconds!");
+		Integer id = getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+			public void run() {
+				if (red.contains(player.getName())) {
+					Player respawnedPlayer = getServer().getPlayer(getPlayersRespawningRed().get(0));
+					playersRespawningRed.remove(0);
+					setPlayersRespawningRed(playersRespawningRed);
+					respawnedPlayer.teleport(respawn(respawnedPlayer));
+				} else if (blue.contains(player.getName())) {
+					Player respawnedPlayer = getServer().getPlayer(getPlayersRespawningBlue().get(0));
+					respawnedPlayer.teleport(respawn(respawnedPlayer));
+					playersRespawningBlue.remove(0);
+					setPlayersRespawningBlue(playersRespawningBlue);
+				}
+				HashMap<String, Integer> respawnTimers = getRespawnTimers();
+				respawnTimers.remove(player.getName());
+				setRespawnTimers(respawnTimers);
+			}
+		}, settings.getIntSetting("respawnTimer"));
+		return id;
+	}
+
+	public ItemStack getHelmet(String team) {
+		ItemStack helmet = null;
+		if (team.equals("blue")) {
+			List<String> tempBlueArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".bluearmour");
+			for (String itemString : tempBlueArmour) {
+				String[] configArmourSplit = itemString.split(":");
+				String armourType = configArmourSplit[0];
+				int type = Integer.parseInt(configArmourSplit[1]);
+				int amount = Integer.parseInt(configArmourSplit[2]);
+				byte data = (byte) Integer.parseInt(configArmourSplit[3]);
+				ItemStack item = new ItemStack(type, amount, data);
+				if (armourType.equals("helmet")) {
+					helmet = item;
+				}
+			}
+		} else if (team.equals("red")) {
+			List<String> tempRedArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".redarmour");
+			for (String itemString : tempRedArmour) {
+				String[] configArmourSplit = itemString.split(":");
+				String armourType = configArmourSplit[0];
+				int type = Integer.parseInt(configArmourSplit[1]);
+				int amount = Integer.parseInt(configArmourSplit[2]);
+				byte data = (byte) Integer.parseInt(configArmourSplit[3]);
+				ItemStack item = new ItemStack(type, amount, data);
+				if (armourType.equals("helmet")) {
+					helmet = item;
+				}
+			}
+		}
+		return helmet;
+
 	}
 
 	public void removeDeadAfterGame() {
@@ -314,19 +397,19 @@ public class SimplePVP extends JavaPlugin {
 	//Round, stop and score methods.
 	public void roundTimer() {
 		updatedTimer = false;
-		if (roundTime == 0) {
+		if (settings.getIntSetting("roundTime") == 0) {
 			return;
 		}
 		roundTimer = getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
-			Integer timeLeft = roundTime;
+			Integer timeLeft = settings.getIntSetting("roundtime");
 
 			public void run() {
 				timeLeft--;
 				if (timeLeft == 0) {
-					if (gameMode.equals("dth")) {
+					if (settings.getStringSetting("gameMode").equals("dth")) {
 						sendMessageAll(header + "Time's up! The blue team has defended the hill!");
 						blueScore++;
-						if (blueScore >= scoreLimit) {
+						if (blueScore >= settings.getIntSetting("scoreLimit")) {
 							stop();
 						} else {
 							sendMessageAll(header + "Switching sides!");
@@ -369,8 +452,7 @@ public class SimplePVP extends JavaPlugin {
 		red.clear();
 		blue.clear();
 		resetTypes();
-		selectedMap = null;
-		isPlaying = false;
+		settings.setBooleanSetting("isPlaying", false);
 	}
 	public void nextRound() {
 		betweenRounds = true;
@@ -378,7 +460,7 @@ public class SimplePVP extends JavaPlugin {
 		teleportRed("speclocation");
 		teleportBlue("speclocation");
 		emptyAllInventories();
-		sendMessageAll(header + "The next round will start in " + betweenRoundTime + " seconds!");
+		sendMessageAll(header + "The next round will start in " + settings.getIntSetting("betweenRoundTime") + " seconds!");
 		getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
 			public void run() {
 				betweenRounds = false;
@@ -409,21 +491,21 @@ public class SimplePVP extends JavaPlugin {
 				teleportRed("redlocation");
 				teleportBlue("bluelocation");
 			}
-		}, betweenRoundTime * 20);
+		}, settings.getIntSetting("betweenRoundTime") * 20);
 	}
 	public void givePoint(int team) {
-		if (gameMode.equals("redstone")) {
+		if (settings.getStringSetting("gameMode").equals("redstone")) {
 			sendMessageAll(ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "Team blue activated the redstone!");
 			sendRedstoneScore();
 		}
 		if (team == 1) {
 			redScore++;
-			if (redScore >= scoreLimit && scoreLimit != 0) {
+			if (redScore >= settings.getIntSetting("scoreLimit") && settings.getIntSetting("scoreLimit") != 0) {
 				stop();
 			}
 		} else if (team == 2) {
 			blueScore++;
-			if (blueScore >= scoreLimit && scoreLimit != 0) {
+			if (blueScore >= settings.getIntSetting("scoreLimit") && settings.getIntSetting("scoreLimit") != 0) {
 				stop();
 			}
 		}
@@ -431,7 +513,7 @@ public class SimplePVP extends JavaPlugin {
 	//Inventory methods
 
 	public void loadItemsRed() {
-		List<String> configItems = config.getStringList("maps." + selectedMap + ".redinv");
+		List<String> configItems = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".redinv");
 		// ItemStack[] tempInv = null;
 		List<ItemStack> tempInv = new ArrayList<ItemStack>();
 		for (String itemString : configItems) {
@@ -457,7 +539,7 @@ public class SimplePVP extends JavaPlugin {
 		}
 		ArrayList<String> configItemList = new ArrayList<String>();
 		for (ItemStack item : itemstack) {
-			config.set("maps." + selectedMap + ".redinv", null);
+			config.set("maps." + settings.getStringSetting("selectedMap") + ".redinv", null);
 			String type = Integer.toString(item.getTypeId());
 			String amount = Integer.toString(item.getAmount());
 			byte data = item.getData().getData();
@@ -472,11 +554,11 @@ public class SimplePVP extends JavaPlugin {
 			}
 			configItemList.add(type + ":" + amount + ":" + data + ":" + tempArrayList);
 		}
-		config.set("maps." + selectedMap + ".redinv", configItemList);
+		config.set("maps." + settings.getStringSetting("selectedMap") + ".redinv", configItemList);
 		saveConfig();
 	}
 	public void loadItemsBlue() {
-		List<String> configItems = config.getStringList("maps." + selectedMap + ".blueinv");
+		List<String> configItems = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".blueinv");
 		// ItemStack[] tempInv = null;
 		List<ItemStack> tempInv = new ArrayList<ItemStack>();
 		for (String itemString : configItems) {
@@ -503,7 +585,7 @@ public class SimplePVP extends JavaPlugin {
 		}
 		ArrayList<String> configItemList = new ArrayList<String>();
 		for (ItemStack item : itemstack) {
-			config.set("maps." + selectedMap + ".blueinv", null);
+			config.set("maps." + settings.getStringSetting("selectedMap") + ".blueinv", null);
 			String type = Integer.toString(item.getTypeId());
 			String amount = Integer.toString(item.getAmount());
 			byte data = item.getData().getData();
@@ -518,7 +600,7 @@ public class SimplePVP extends JavaPlugin {
 			}
 			configItemList.add(type + ":" + amount + ":" + data + ":" + tempArrayList);
 		}
-		config.set("maps." + selectedMap + ".blueinv", configItemList);
+		config.set("maps." + settings.getStringSetting("selectedMap") + ".blueinv", configItemList);
 		saveConfig();
 	}
 	public void removeEmptyInvSlotsRed(ItemStack[] itemStack) {
@@ -545,7 +627,7 @@ public class SimplePVP extends JavaPlugin {
 				player.getInventory().setContents(redInv);
 			} catch (NullPointerException e) {
 			}
-			List<String> tempRedArmour = config.getStringList("maps." + selectedMap + ".redarmour");
+			List<String> tempRedArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".redarmour");
 			for (String itemString : tempRedArmour) {
 				String[] configArmourSplit = itemString.split(":");
 				String armourType = configArmourSplit[0];
@@ -569,7 +651,7 @@ public class SimplePVP extends JavaPlugin {
 				player.getInventory().setContents(blueInv);
 			} catch (NullPointerException e) {
 			}
-			List<String> tempBlueArmour = config.getStringList("maps." + selectedMap + ".bluearmour");
+			List<String> tempBlueArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".bluearmour");
 			for (String itemString : tempBlueArmour) {
 				String[] configArmourSplit = itemString.split(":");
 				String armourType = configArmourSplit[0];
@@ -590,7 +672,7 @@ public class SimplePVP extends JavaPlugin {
 		}
 	}
 	public void getArmourRed(Player player) {
-		config.set("maps." + selectedMap + ".redarmour", null);
+		config.set("maps." + settings.getStringSetting("selectedMap") + ".redarmour", null);
 		saveArmour(player.getInventory().getItem(0), "helmet", "red");
 		saveArmour(player.getInventory().getItem(1), "chest", "red");
 		saveArmour(player.getInventory().getItem(2), "leggings", "red");
@@ -598,7 +680,7 @@ public class SimplePVP extends JavaPlugin {
 		saveConfig();
 	}
 	public void getArmourBlue(Player player) {
-		config.set("maps." + selectedMap + ".bluearmour", null);
+		config.set("maps." + settings.getStringSetting("selectedMap") + ".bluearmour", null);
 		saveArmour(player.getInventory().getItem(0), "helmet", "blue");
 		saveArmour(player.getInventory().getItem(1), "chest", "blue");
 		saveArmour(player.getInventory().getItem(2), "leggings", "blue");
@@ -621,9 +703,9 @@ public class SimplePVP extends JavaPlugin {
 				Map.Entry<Enchantment, Integer> me = (Map.Entry<Enchantment, Integer>) itemItr.next();
 				tempArrayList.add(me.getKey().toString() + ":" + me.getValue().toString());
 			}
-			List<String> tempArmour = config.getStringList("maps." + selectedMap + "." + team + "armour");
+			List<String> tempArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + "." + team + "armour");
 			tempArmour.add(armourType + ":" + type + ":" + amount + ":" + data + ":" + tempArrayList);
-			config.set("maps." + selectedMap + "." + team + "armour", tempArmour);
+			config.set("maps." + settings.getStringSetting("selectedMap") + "." + team + "armour", tempArmour);
 		}
 	}
 
@@ -652,7 +734,7 @@ public class SimplePVP extends JavaPlugin {
 		Iterator<String> blueItr = blue.iterator();
 		ItemStack[] tempBlueInv = null;
 		ItemStack[] tempRedInv = null;
-		if (gameMode.equals("dth") && attacking.equals("blue")) {
+		if (settings.getStringSetting("gameMode").equals("dth") && attacking.equals("blue")) {
 			try {
 				tempBlueInv = redInv;
 			} catch (NullPointerException e) {
@@ -677,7 +759,7 @@ public class SimplePVP extends JavaPlugin {
 				player.getInventory().setContents(tempBlueInv);
 			} catch (NullPointerException e) {
 			}
-			List<String> tempBlueArmour = config.getStringList("maps." + selectedMap + ".bluearmour");
+			List<String> tempBlueArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".bluearmour");
 			for (String itemString : tempBlueArmour) {
 				String[] configArmourSplit = itemString.split(":");
 				String armourType = configArmourSplit[0];
@@ -703,7 +785,7 @@ public class SimplePVP extends JavaPlugin {
 				player.getInventory().setContents(tempRedInv);
 			} catch (NullPointerException e) {
 			}
-			List<String> tempRedArmour = config.getStringList("maps." + selectedMap + ".redarmour");
+			List<String> tempRedArmour = config.getStringList("maps." + settings.getStringSetting("selectedMap") + ".redarmour");
 			for (String itemString : tempRedArmour) {
 				String[] configArmourSplit = itemString.split(":");
 				String armourType = configArmourSplit[0];
@@ -732,7 +814,7 @@ public class SimplePVP extends JavaPlugin {
 		ArrayList<String> configItemList = new ArrayList<String>();
 		for (ItemStack item : itemstack) {
 			if (item != null) {
-				config.set("maps." + selectedMap + ".bluearmour", null);
+				config.set("maps." + settings.getStringSetting("selectedMap") + ".bluearmour", null);
 				String type = Integer.toString(item.getTypeId());
 				String amount = Integer.toString(item.getAmount());
 				byte data = item.getData().getData();
@@ -748,7 +830,7 @@ public class SimplePVP extends JavaPlugin {
 				configItemList.add(type + ":" + amount + ":" + data + ":" + tempArrayList);
 			}
 		}
-		config.set("maps." + selectedMap + ".bluearmour", configItemList);
+		config.set("maps." + settings.getStringSetting("selectedMap") + ".bluearmour", configItemList);
 		saveConfig();
 	}
 	//Map methods
@@ -795,27 +877,14 @@ public class SimplePVP extends JavaPlugin {
 			System.out.println("No maps found in the config file!");
 		}
 	}
-	
+
 	//Type methods
 	public void loadTypes() {
-		joinType = config.getString("maps." + selectedMap + ".jointype");
-		gameMode = config.getString("maps." + selectedMap + ".gamemode");
-		friendlyFire = config.getString("maps." + selectedMap + ".friendlyfire");
-		deathTypePay = config.getInt("maps." + selectedMap + ".deathtypepay");
-		deathTypeDrop = config.getString("maps." + selectedMap + ".deathtypedrop");
-		respawnTimer = config.getInt("maps." + selectedMap + ".respawntimer");
-		scoreLimit = config.getInt("maps." + selectedMap + ".scorelimit");
-		maxPlayers = config.getInt("maps." + selectedMap + ".maxplayers");
-		randomSpawnPoints = config.getString("maps." + selectedMap + ".randomspawnpoints");
-		joinMidGame = config.getString("maps." + selectedMap + ".joinmidgame");
-		roundTime = config.getInt("maps." + selectedMap + ".roundtime");
-		forcePvpChat = config.getString("maps." + selectedMap + ".forcepvpchat");
-		outOfBoundsArea = config.getString("maps." + selectedMap + ".outofboundsarea");
-		outOfBoundsTime = config.getInt("maps." + selectedMap + ".outofboundstime");
-		autoBalance = "enabled";
+		String selectedMap = settings.getStringSetting("selectedMap");
+		settings.loadSettings();
 		if (config.contains("maps." + selectedMap + ".outofboundslocation1") && config.contains("maps." + selectedMap + ".outofboundslocation2")) {
-			adminCommands.setOutOfBoundsLocation(getConfigLocation(selectedMap, "outofboundslocation1"), 1);
-			adminCommands.setOutOfBoundsLocation(getConfigLocation(selectedMap, "outofboundslocation2"), 2);
+			adminCommandHandler.setOutOfBoundsLocation(getConfigLocation(selectedMap, "outofboundslocation1"), 1);
+			adminCommandHandler.setOutOfBoundsLocation(getConfigLocation(selectedMap, "outofboundslocation2"), 2);
 		}
 		redSpawnLocations = 0;
 		Boolean hasNext = true;
@@ -836,25 +905,13 @@ public class SimplePVP extends JavaPlugin {
 			}
 		}
 	}
+
 	public void saveTypes() {
-		config.set("maps." + selectedMap + ".jointype", joinType);
-		config.set("maps." + selectedMap + ".gamemode", gameMode);
-		config.set("maps." + selectedMap + ".friendlyfire", friendlyFire);
-		config.set("maps." + selectedMap + ".deathtypepay", deathTypePay);
-		config.set("maps." + selectedMap + ".deathtypedrop", deathTypeDrop);
-		config.set("maps." + selectedMap + ".respawntimer", respawnTimer);
-		config.set("maps." + selectedMap + ".scorelimit", scoreLimit);
-		config.set("maps." + selectedMap + ".maxplayers", maxPlayers);
-		config.set("maps." + selectedMap + ".randomspawnpoints", randomSpawnPoints);
-		config.set("maps." + selectedMap + ".joinmidgame", joinMidGame);
-		config.set("maps." + selectedMap + ".roundtime", roundTime);
-		config.set("maps." + selectedMap + ".forcepvpchat", forcePvpChat);
-		config.set("maps." + selectedMap + ".outofboundsarea", outOfBoundsArea);
-		config.set("maps." + selectedMap + ".outofboundstime", outOfBoundsTime);
-		config.set("maps." + selectedMap + ".autobalance", autoBalance);
-		if (adminCommands.getOutOfBoundsLocation(1) != null && adminCommands.getOutOfBoundsLocation(2) != null) {
-			setConfigLocation("maps." + selectedMap + ".outofboundslocation1", adminCommands.getOutOfBoundsLocation(1));
-			setConfigLocation("maps." + selectedMap + ".outofboundslocation2", adminCommands.getOutOfBoundsLocation(2));
+		String selectedMap = settings.getStringSetting("selectedMap");
+		settings.saveSettings();
+		if (adminCommandHandler.getOutOfBoundsLocation(1) != null && adminCommandHandler.getOutOfBoundsLocation(2) != null) {
+			setConfigLocation("maps." + selectedMap + ".outofboundslocation1", adminCommandHandler.getOutOfBoundsLocation(1));
+			setConfigLocation("maps." + selectedMap + ".outofboundslocation2", adminCommandHandler.getOutOfBoundsLocation(2));
 		}
 		saveMapNames();
 		saveItemsRed(redInv);
@@ -881,49 +938,21 @@ public class SimplePVP extends JavaPlugin {
 		player.sendMessage(header + "Auto balance: [enabled/disabled]");
 	}
 	public void sendCurrentTypes(Player player) {
-		player.sendMessage(header + "Join type: " + joinType);
-		player.sendMessage(header + "Gamemode: " + gameMode);
-		player.sendMessage(header + "Friendly fire: " + friendlyFire);
-		player.sendMessage(header + "Death Type Pay: " + deathTypePay);
-		player.sendMessage(header + "Death Type Drop: " + deathTypeDrop);
-		player.sendMessage(header + "Respawn Timer: " + respawnTimer / 20);
-		player.sendMessage(header + "Score limit: " + scoreLimit);
-		player.sendMessage(header + "Players: " + maxPlayers);
-		player.sendMessage(header + "Nick: " + maps.get(selectedMap));
-		player.sendMessage(header + "Random spawn points: " + randomSpawnPoints);
-		player.sendMessage(header + "Join mid game: " + joinMidGame);
-		player.sendMessage(header + "Round time: " + roundTime);
-		player.sendMessage(header + "Force pvp chat: " + forcePvpChat);
-		player.sendMessage(header + "Out of bounds area: " + outOfBoundsArea);
-		player.sendMessage(header + "Out of bounds time: " + outOfBoundsTime);
-		player.sendMessage(header + "Auto balance: " + autoBalance);
 		player.sendMessage(header + "Red spawn locations: " + redSpawnLocations);
 		player.sendMessage(header + "Blue spawn locations: " + blueSpawnLocations);
+		settings.sendTypes(player);
 	}
 
 	public void resetTypes() {
-		joinType = "freejoin";
-		gameMode = "none";
-		friendlyFire = "disabled";
-		deathTypeDrop = "disabled";
-		respawnTimer = 0;
-		deathTypePay = 0;
-		scoreLimit = 10;
+		settings.resetSettings();
 		redScore = 0;
 		blueScore = 0;
 		playersRespawningRed.clear();
 		playersRespawningBlue.clear();
 		redSpawnLocations = 0;
 		blueSpawnLocations = 0;
-		randomSpawnPoints = "enabled";
-		joinMidGame = "disabled";
-		forcePvpChat = "enabled";
-		outOfBoundsArea = "disabled";
-		outOfBoundsTime = 5;
-		autoBalance = "enabled";
 		redInv = null;
 		blueInv = null;
-		roundTime = 0;
 	}
 
 	//Config locations
@@ -1037,10 +1066,11 @@ public class SimplePVP extends JavaPlugin {
 
 	//Teleport methods
 	public Location respawn(Player player) {
+		String selectedMap = settings.getStringSetting("selectedMap");
 		Location location = null;
 
 		if (blue.contains(player.getName())) {
-			if (randomSpawnPoints.equals("enabled")) {
+			if (settings.getBooleanSetting("randomSpawnPoints") == true) {
 				int randLocation = 0;
 				if (blueSpawnLocations > 1) {
 					Random random = new Random();
@@ -1051,7 +1081,7 @@ public class SimplePVP extends JavaPlugin {
 				location = getConfigLocation(selectedMap, "bluelocation0");
 			}
 		} else if (red.contains(player.getName())) {
-			if (randomSpawnPoints.equals("enabled")) {
+			if (settings.getBooleanSetting("randomSpawnPoints") == true) {
 				int randLocation = 0;
 				if (redSpawnLocations > 1) {
 					Random random = new Random();
@@ -1070,6 +1100,7 @@ public class SimplePVP extends JavaPlugin {
 	}
 
 	public void teleportRed(String locationName) {
+		String selectedMap = settings.getStringSetting("selectedMap");
 		if (red.size() == 0) {
 			return;
 		}
@@ -1081,7 +1112,7 @@ public class SimplePVP extends JavaPlugin {
 			if (locationName.equals("spawn")) {
 				World world = getServer().getWorld("world");
 				location = world.getSpawnLocation();
-			} else if (locationName.equals("redlocation") && randomSpawnPoints.equals("enabled")) {
+			} else if (locationName.equals("redlocation") && settings.getBooleanSetting("randomSpawnPoints") == true) {
 				int randLocation = 0;
 				if (redSpawnLocations > 1) {
 					Random random = new Random();
@@ -1089,7 +1120,7 @@ public class SimplePVP extends JavaPlugin {
 				}
 				location = getConfigLocation(selectedMap, locationName + randLocation);
 			} else {
-				location = getConfigLocation(selectedMap, locationName);
+				location = getConfigLocation(selectedMap, locationName + "0");
 			}
 			try {
 				player.teleport(location);
@@ -1098,6 +1129,7 @@ public class SimplePVP extends JavaPlugin {
 		}
 	}
 	public void teleportBlue(String locationName) {
+		String selectedMap = settings.getStringSetting("selectedMap");
 		if (blue.size() == 0) {
 			return;
 		}
@@ -1109,7 +1141,7 @@ public class SimplePVP extends JavaPlugin {
 			if (locationName.equals("spawn")) {
 				World world = getServer().getWorld("world");
 				location = world.getSpawnLocation();
-			} else if (locationName.equals("bluelocation")) {
+			} else if (locationName.equals("bluelocation") && settings.getBooleanSetting("randomSpawnPoints") == true) {
 				int randLocation = 0;
 				if (blueSpawnLocations > 1) {
 					Random random = new Random();
@@ -1117,7 +1149,7 @@ public class SimplePVP extends JavaPlugin {
 				}
 				location = getConfigLocation(selectedMap, locationName + randLocation);
 			} else {
-				location = getConfigLocation(selectedMap, locationName);
+				location = getConfigLocation(selectedMap, locationName + "0");
 			}
 			try {
 				player.teleport(location);
@@ -1134,7 +1166,7 @@ public class SimplePVP extends JavaPlugin {
 			World world = getServer().getWorld("world");
 			location = world.getSpawnLocation();
 		} else {
-			location = getConfigLocation(selectedMap, locationName);
+			location = getConfigLocation(settings.getStringSetting("selectedMap"), locationName);
 		}
 		Player player;
 		Iterator<String> specItr = spectate.iterator();
@@ -1179,13 +1211,13 @@ public class SimplePVP extends JavaPlugin {
 	public void joinGame(Player player, String team) {
 		if (team != null) {
 			if (team.equalsIgnoreCase("blue")) {
-				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+				player.teleport(getConfigLocation(settings.getStringSetting("selectedMap"), "speclocation"));
 				sendMessageAll(header + ChatColor.BLUE + player.getName() + ChatColor.WHITE + " joined the game!");
 				blue.add(player.getName());
 				player.sendMessage(header + "You joined team " + ChatColor.BLUE + "blue" + "!");
 				player.sendMessage(header + "You will be teleported to your teams spawn point as soon as the match starts!");
 			} else if (team.equalsIgnoreCase("red")) {
-				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+				player.teleport(getConfigLocation(settings.getStringSetting("selectedMap"), "speclocation"));
 				sendMessageAll(header + ChatColor.RED + player.getName() + ChatColor.WHITE + " joined the game!");
 				red.add(player.getName());
 				player.sendMessage(header + "You joined team " + ChatColor.RED + "red" + "!");
@@ -1195,13 +1227,13 @@ public class SimplePVP extends JavaPlugin {
 			}
 		} else {
 			if (blue.size() >= red.size()) {
-				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+				player.teleport(getConfigLocation(settings.getStringSetting("selectedMap"), "speclocation"));
 				sendMessageAll(header + ChatColor.RED + player.getName() + ChatColor.WHITE + " joined the game!");
 				red.add(player.getName());
 				player.sendMessage(header + "You joined team " + ChatColor.RED + "red" + "!");
 				player.sendMessage(header + "You will be teleported to your teams spawn point as soon as the match starts!");
 			} else {
-				player.teleport(getConfigLocation(selectedMap, "speclocation"));
+				player.teleport(getConfigLocation(settings.getStringSetting("selectedMap"), "speclocation"));
 				sendMessageAll(header + ChatColor.BLUE + player.getName() + ChatColor.WHITE + " joined the game!");
 				blue.add(player.getName());
 				player.sendMessage(header + "You joined team " + ChatColor.BLUE + "blue" + "!");
@@ -1210,10 +1242,13 @@ public class SimplePVP extends JavaPlugin {
 		}
 
 		//Force pvp join if enabled
-		if (forcePvpChat.equals("enabled")) {
+		if (settings.getBooleanSetting("forcePvpChat") == true) {
 			allChat.add(player.getName());
 			player.sendMessage(header + "You joined the all chat channel!");
 		}
+
+		//Add to PlayerScore.
+		playerScores.put(player.getName(), new PlayerScore(player.getName()));
 	}
 	public void logOffMidGame(Player player) {
 		String playerName = player.getName();
@@ -1236,7 +1271,7 @@ public class SimplePVP extends JavaPlugin {
 	public boolean leaveGame(String playerName) {
 		Player player = getServer().getPlayer(playerName);
 		if (player != null) {
-			if (gameMode.equals("ctf")) {
+			if (settings.getStringSetting("gameMode").equals("ctf")) {
 				if (redFlagTaken != null) {
 					if (redFlagTaken.equals(playerName)) {
 						setRedFlagTaken(null);
@@ -1270,7 +1305,7 @@ public class SimplePVP extends JavaPlugin {
 		} else {
 			return false;
 		}
-		if (autoBalance.equals("enabled")) {
+		if (settings.getBooleanSetting("autoBalance") == true) {
 			balanceTeams();
 		}
 		return true;
@@ -1396,339 +1431,217 @@ public class SimplePVP extends JavaPlugin {
 
 		if (commandLabel.equalsIgnoreCase("pvp")) {
 			if (sender instanceof Player) {
-				Player player = (Player) sender;
 				if (args.length > 0) {
 					String arg = args[0];
-					
-					
-					if (arg.equalsIgnoreCase("join")) {
-						if (player.hasPermission("simplepvp.join") || player.hasPermission("simplepvp.player")) {
-							if (selectedMap != null) {
-								if (!red.contains(player.getName()) && !blue.contains(player.getName()) && !spectate.contains(player.getName())) {
-									if (maxPlayers != 0 && red.size() + blue.size() >= maxPlayers) {
-										player.sendMessage(header + "Error: This game is full (Player limit: " + maxPlayers + ")!");
-										return true;
-									}
-									if (args.length > 1) {
-										arg = args[1];
-									} else {
-										arg = null;
-									}
-									if (joinType.equals("freejoin")) {
-										player.sendMessage(isPlaying + joinMidGame);
-										if (isPlaying == true && joinMidGame.equals("disabled")) {
-											player.sendMessage(header + "Error: The game has already started, you'll have to wait for the next game!");
-											return true;
-										}
-										if (checkInventory(player) == true) {
-											joinGame(player, arg);
-											giveItems(player);
-										} else {
-											player.sendMessage(header + "Error: Empty your inventory first, make sure you also don't have armor on!");
-										}
-										if (isPlaying == true) {
-											respawn(player);
-										}
-										return true;
-									} else if (joinType.equals("invite")) {
-										if (invites.contains(player.getName())) {
-											if (checkInventory(player) == true) {
-												joinGame(player, arg);
-												giveItems(player);
-												invites.remove(player.getName());
-											} else {
-												player.sendMessage(header + "Error: Emtpy your inventory first, make sure you also don't have armor on!");
-											}
-											return true;
-										}
-										player.sendMessage(header + "Error: You are not allowed to join the game, this game does not have free join enabled!");
-									}
+					String[] playerCommands = { "join", "leave", "teams", "score", "team", "all", "chat", "spectate", "info", "flag" };
+					String[] modCommands = { "list", "select", "change", "allowjoin", "start", "stop", "allplayers", "balance", "kick", "invite", "win" };
+					String[] adminCommands = { "create", "abort", "setpos", "done", "remove", "tp" };
+					for (String command : playerCommands) {
+						if (arg.equalsIgnoreCase(command))
+							return playerCommandHandler.playerCommandHandler(sender, cmd, commandLabel, args);
+					}
+					for (String command : modCommands) {
+						if (arg.equalsIgnoreCase(command))
+							return modCommandHandler.modCommandHandler(sender, cmd, commandLabel, args);
+					}
+					for (String command : adminCommands) {
+						if (arg.equalsIgnoreCase(command))
+							return adminCommandHandler.adminCommandHandler(sender, cmd, commandLabel, args);
+					}
 
-								} else {
-									player.sendMessage(header + "Error: You are already in a team! Type /pvp leave to leave if you want to join a different team!");
-								}
-							} else {
-								player.sendMessage(header + "Error: There is no game to join!");
-							}
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
+					Player player = (Player) sender;
+					if (arg.equalsIgnoreCase("getscore")) {
+						if (!player.hasPermission("simplepvp.admin")) {
+							return false;
+						}
+						player.sendMessage(header + "Current kills & deaths:");
+						for (String playerName : red) {
+							player.sendMessage(header + ChatColor.RED + playerName + ChatColor.WHITE + "| Kills: " + playerScores.get(playerName).getKills() + " | Deaths: "
+									+ playerScores.get(playerName).getDeaths());
+						}
+						for (String playerName : blue) {
+							player.sendMessage(header + ChatColor.BLUE + playerName + ChatColor.WHITE + "| Kills: " + playerScores.get(playerName).getKills() + " | Deaths: "
+									+ playerScores.get(playerName).getDeaths());
 						}
 						return true;
 					}
-
-					if (arg.equalsIgnoreCase("leave")) {
-						if (player.hasPermission("simplepvp.join") || player.hasPermission("simplepvp.player")) {
-							if (leaveGame(player.getName()) == true) {
-								player.sendMessage(header + "You left the game!");
-							} else {
-								player.sendMessage(header + "Error: You aren't in a game!");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("teams")) {
-						if (player.hasPermission("simplepvp.teams") || player.hasPermission("simplepvp.player")) {
-							player.sendMessage(ChatColor.DARK_RED + "PvP Teams:");
-							player.sendMessage(ChatColor.RED + "Team Red " + "(" + red.size() + "): " + red.toString());
-							player.sendMessage(ChatColor.BLUE + "Team Blue " + "(" + blue.size() + "): " + blue.toString());
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("score")) {
-						if (player.hasPermission("simplepvp.score") || player.hasPermission("simplepvp.player")) {
-							if (gameMode.equals("tdm")) {
-								player.sendMessage(ChatColor.DARK_RED + "TDM Score:");
-								player.sendMessage(ChatColor.RED + "Team Red: " + Integer.toString(redScore));
-								player.sendMessage(ChatColor.BLUE + "Team Blue: " + Integer.toString(blueScore));
-							} else if (gameMode.equals("ctf")) {
-								player.sendMessage(ChatColor.DARK_RED + "CTF Score:");
-								player.sendMessage(ChatColor.RED + "Team Red: " + Integer.toString(redScore));
-								player.sendMessage(ChatColor.BLUE + "Team Blue: " + Integer.toString(blueScore));
-							} else if (gameMode.equals("dth")) {
-								player.sendMessage(ChatColor.DARK_RED + "DTH Score:");
-								player.sendMessage(ChatColor.RED + "Team Red: " + Integer.toString(redScore));
-								player.sendMessage(ChatColor.BLUE + "Team Blue: " + Integer.toString(blueScore));
-							} else if (gameMode.equals("lms")) {
-								player.sendMessage(ChatColor.DARK_RED + "LMS Score:");
-								player.sendMessage(ChatColor.RED + "Team Red: " + Integer.toString(redScore));
-								player.sendMessage(ChatColor.BLUE + "Team Blue: " + Integer.toString(blueScore));
-							} else {
-								player.sendMessage(header + "Error: No gamemode selected!");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("team")) {
-						if (player.hasPermission("simplepvp.team") || player.hasPermission("simplepvp.player")) {
-							if (!red.contains(player.getName()) && !blue.contains(player.getName()))
-								return false;
-							if (args.length > 1) {
-								String fullMessage = Joiner.on(" ").join(args);
-								fullMessage = fullMessage.replaceFirst("team ", "");
-								pvpChat(player, "team", fullMessage);
-							} else if (!teamChat.contains(player.getName())) {
-								teamChat.add(player.getName());
-								allChat.remove(player.getName());
-								player.sendMessage(header + "You joined the team chat channel!");
-							} else {
-								player.sendMessage(header + "Error: You are already in the team chat channel. Just type in chat to say something in this channel!");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("all")) {
-						if (player.hasPermission("simplepvp.all") || player.hasPermission("simplepvp.player")) {
-							if (checkInGame(player) == null)
-								return false;
-							if (args.length > 1) {
-								String fullMessage = Joiner.on(" ").join(args);
-								fullMessage = fullMessage.replaceFirst("all ", "");
-								pvpChat(player, "all", fullMessage);
-							} else if (!allChat.contains(player.getName())) {
-								allChat.add(player.getName());
-								teamChat.remove(player.getName());
-								player.sendMessage(header + "You joined the all chat channel!");
-							} else {
-								player.sendMessage(header + "Error: You are already in the all chat channel. Just type in chat to say something in this channel!");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("chat")) {
-						if (player.hasPermission("simplepvp.player") || player.hasPermission("simplepvp.chat")) {
-							if (allChat.contains(player.getName())) {
-								allChat.remove(player.getName());
-								player.sendMessage(header + "You left pvp chat and are now speaking in normal chat!");
-							} else if (teamChat.contains(player.getName())) {
-								teamChat.remove(player.getName());
-								player.sendMessage(header + "You left pvp chat and are now speaking in normal chat!");
-							} else {
-								player.sendMessage(header + "Error: You were not in pvp chat.");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-						}
-					}
-
-					if (arg.equalsIgnoreCase("spectate")) {
-						if (player.hasPermission("simplepvp.spectate") || player.hasPermission("simplepvp.player")) {
-							if (selectedMap == null) {
-								player.sendMessage(header + "Error: There is no game to join!");
-								return true;
-							}
-							if (!red.contains(player.getName()) && !blue.contains(player.getName()) && !spectate.contains(player.getName())) {
-								if (checkInventory(player) == true) {
-									spectate.add(player.getName());
-									player.teleport(getConfigLocation(selectedMap, "speclocation"));
-									player.sendMessage(header + "You are now spectating! Enjoy!");
-								} else {
-									player.sendMessage(header + "Error: Emtpy your inventory first, make sure you also don't have armor on!");
-								}
-							} else {
-								player.sendMessage(header + "Error: You are already in a team! Type /pvp leave to leave if you want to join a different team!");
-							}
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-						}
-						return true;
-					}
-					if (arg.equalsIgnoreCase("info")) {
-						if (player.hasPermission("simplepvp.player")) {
-							sendCurrentTypes(player);
-							return true;
-						}
-					}
-					if (arg.equalsIgnoreCase("flag")) {
-						if (player.hasPermission("simplepvp.flag") || player.hasPermission("simplepvp.player")) {
-							if (!gameMode.equals("ctf")) {
-								player.sendMessage(header + "Error: The gamemode is not ctf!");
-								return true;
-							}
-							if (blueFlagTaken != null) {
-								player.sendMessage(header + "Blue flag: " + blueFlagTaken);
-							} else {
-								player.sendMessage(header + "Blue flag not taken");
-							}
-							if (redFlagTaken != null) {
-								player.sendMessage(header + "Red flag: " + redFlagTaken);
-							} else {
-								player.sendMessage(header + "Red flag not taken");
-							}
-							return true;
-						} else {
-							player.sendMessage(ChatColor.RED + "You do not have access to that command.");
-							return true;
-						}
-					}
-					if (arg.equalsIgnoreCase("debug")) {
-						if (player.hasPermission("simplepvp.admin")) {
-							player.sendMessage("Red respawning:");
-							player.sendMessage(playersRespawningRed.toString());
-							player.sendMessage("Blue respawning:");
-							player.sendMessage(playersRespawningBlue.toString());
-							player.sendMessage("Is playing: " + isPlaying);
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("updatemaxplayers")) {
-						if (player.hasPermission("simplepvp.admin")) {
-							player.sendMessage(header + "Changing config for maxplayers...");
-							Set<String> mapNamesFromConfig = ((ConfigurationSection) config.get("maps")).getKeys(false);
-							player.sendMessage(header + mapNamesFromConfig.toString());
-							Iterator<String> mapNamesItr = mapNamesFromConfig.iterator();
-							while (mapNamesItr.hasNext()) {
-								String tempMapName = mapNamesItr.next().toString();
-								if (config.contains("maps." + tempMapName + ".maxPlayers")) {
-									config.set("maps." + tempMapName + ".maxplayers", config.get("maps." + tempMapName + ".maxPlayers"));
-									config.set("maps." + tempMapName + ".maxPlayers", null);
-								}
-							}
-							saveConfig();
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("updatetypes")) {
-						if (player.hasPermission("simplepvp.admin")) {
-							player.sendMessage(header + "Nothing to update...");
-							Set<String> mapNamesFromConfig = ((ConfigurationSection) config.get("maps")).getKeys(false);
-							player.sendMessage(header + mapNamesFromConfig.toString());
-							Iterator<String> mapNamesItr = mapNamesFromConfig.iterator();
-							while (mapNamesItr.hasNext()) {
-								String tempMapName = mapNamesItr.next().toString();
-								if (!config.contains("maps." + tempMapName + ".forcepvpchat")) {
-									config.set("maps." + tempMapName + ".forcepvpchat", "enabled");
-								}
-								if (!config.contains("maps." + tempMapName + ".outofboundsarea")) {
-									config.set("maps." + tempMapName + ".outofboundsarea", "disabled");
-								}
-							}
-							saveConfig();
-							return true;
-						}
-					}
-
-					if (arg.equalsIgnoreCase("reload")) {
-						if (player.hasPermission("simplepvp.admin")) {
-							Bukkit.getPluginManager().disablePlugin(this);
-							Bukkit.getPluginManager().enablePlugin(this);
-							player.sendMessage(ChatColor.GRAY + "SimplePvP has been reloaded...");
-							return true;
-						}
-					}
-					if(arg.equalsIgnoreCase("purgeplayers")){
-						if(player.hasPermission("simplepvp.admin")){
-							ArrayList<String> purgeList = new ArrayList<String>();
-							for(String playerName: red){
-								if(getServer().getPlayer(playerName) == null){
-									purgeList.add(playerName);
-									player.sendMessage("Removing " + playerName + " from team red!");
-								}
-							}
-							red.removeAll(purgeList);
-							purgeList.clear();
-							for(String playerName: blue){
-								if(getServer().getPlayer(playerName) == null){
-									purgeList.add(playerName);
-									player.sendMessage("Removing " + playerName + " from team blue!");
-								}
-							}
-							blue.removeAll(purgeList);
-							purgeList.clear();
-							for(String playerName: spectate){
-								if(getServer().getPlayer(playerName) == null){
-									purgeList.add(playerName);
-									player.sendMessage("Removing " + playerName + " from team spectate!");
-								}
-							}
-							spectate.removeAll(purgeList);
-							purgeList.clear();
-							for(String playerName: playersRespawningRed){
-								if(getServer().getPlayer(playerName) == null){
-									purgeList.add(playerName);
-									player.sendMessage("Removing " + playerName + " from respawning red!");
-								}
-							}
-							playersRespawningRed.removeAll(purgeList);
-							purgeList.clear();
-							for(String playerName: playersRespawningBlue){
-								if(getServer().getPlayer(playerName) == null){
-									purgeList.add(playerName);
-									player.sendMessage("Removing " + playerName + " from respawning blue!");
-								}
-							}
-							playersRespawningBlue.removeAll(purgeList);
-							purgeList.clear();
-							player.sendMessage("Purge complete...");
-							return true;
-						}
-					}
+					/*
+					 * if (arg.equalsIgnoreCase("team")) { if
+					 * (player.hasPermission("simplepvp.team") ||
+					 * player.hasPermission("simplepvp.player")) { if
+					 * (!red.contains(player.getName()) &&
+					 * !blue.contains(player.getName())) return false; if
+					 * (args.length > 1) { String fullMessage =
+					 * Joiner.on(" ").join(args); fullMessage =
+					 * fullMessage.replaceFirst("team ", ""); pvpChat(player,
+					 * "team", fullMessage); } else if
+					 * (!teamChat.contains(player.getName())) {
+					 * teamChat.add(player.getName());
+					 * allChat.remove(player.getName());
+					 * player.sendMessage(header +
+					 * "You joined the team chat channel!"); } else {
+					 * player.sendMessage(header +
+					 * "Error: You are already in the team chat channel. Just type in chat to say something in this channel!"
+					 * ); } return true; } else {
+					 * player.sendMessage(ChatColor.RED +
+					 * "You do not have access to that command."); return true;
+					 * } }
+					 * 
+					 * if (arg.equalsIgnoreCase("all")) { if
+					 * (player.hasPermission("simplepvp.all") ||
+					 * player.hasPermission("simplepvp.player")) { if
+					 * (checkInGame(player) == null) return false; if
+					 * (args.length > 1) { String fullMessage =
+					 * Joiner.on(" ").join(args); fullMessage =
+					 * fullMessage.replaceFirst("all ", ""); pvpChat(player,
+					 * "all", fullMessage); } else if
+					 * (!allChat.contains(player.getName())) {
+					 * allChat.add(player.getName());
+					 * teamChat.remove(player.getName());
+					 * player.sendMessage(header +
+					 * "You joined the all chat channel!"); } else {
+					 * player.sendMessage(header +
+					 * "Error: You are already in the all chat channel. Just type in chat to say something in this channel!"
+					 * ); } return true; } else {
+					 * player.sendMessage(ChatColor.RED +
+					 * "You do not have access to that command."); return true;
+					 * } }
+					 * 
+					 * if (arg.equalsIgnoreCase("chat")) { if
+					 * (player.hasPermission("simplepvp.player") ||
+					 * player.hasPermission("simplepvp.chat")) { if
+					 * (allChat.contains(player.getName())) {
+					 * allChat.remove(player.getName());
+					 * player.sendMessage(header +
+					 * "You left pvp chat and are now speaking in normal chat!"
+					 * ); } else if (teamChat.contains(player.getName())) {
+					 * teamChat.remove(player.getName());
+					 * player.sendMessage(header +
+					 * "You left pvp chat and are now speaking in normal chat!"
+					 * ); } else { player.sendMessage(header +
+					 * "Error: You were not in pvp chat."); } return true; }
+					 * else { player.sendMessage(ChatColor.RED +
+					 * "You do not have access to that command."); } }
+					 * 
+					 * if (arg.equalsIgnoreCase("spectate")) { if
+					 * (player.hasPermission("simplepvp.spectate") ||
+					 * player.hasPermission("simplepvp.player")) { if
+					 * (selectedMap == null) { player.sendMessage(header +
+					 * "Error: There is no game to join!"); return true; } if
+					 * (!red.contains(player.getName()) &&
+					 * !blue.contains(player.getName()) &&
+					 * !spectate.contains(player.getName())) { if
+					 * (checkInventory(player) == true) {
+					 * spectate.add(player.getName());
+					 * player.teleport(getConfigLocation(selectedMap,
+					 * "speclocation")); player.sendMessage(header +
+					 * "You are now spectating! Enjoy!"); } else {
+					 * player.sendMessage(header +
+					 * "Error: Emtpy your inventory first, make sure you also don't have armor on!"
+					 * ); } } else { player.sendMessage(header +
+					 * "Error: You are already in a team! Type /pvp leave to leave if you want to join a different team!"
+					 * ); } } else { player.sendMessage(ChatColor.RED +
+					 * "You do not have access to that command."); } return
+					 * true; } if (arg.equalsIgnoreCase("info")) { if
+					 * (player.hasPermission("simplepvp.player")) {
+					 * sendCurrentTypes(player); return true; } } if
+					 * (arg.equalsIgnoreCase("flag")) { if
+					 * (player.hasPermission("simplepvp.flag") ||
+					 * player.hasPermission("simplepvp.player")) { if
+					 * (!settings.getStringSetting("gameMode").equals("ctf")) {
+					 * player.sendMessage(header +
+					 * "Error: The gamemode is not ctf!"); return true; } if
+					 * (blueFlagTaken != null) { player.sendMessage(header +
+					 * "Blue flag: " + blueFlagTaken); } else {
+					 * player.sendMessage(header + "Blue flag not taken"); } if
+					 * (redFlagTaken != null) { player.sendMessage(header +
+					 * "Red flag: " + redFlagTaken); } else {
+					 * player.sendMessage(header + "Red flag not taken"); }
+					 * return true; } else { player.sendMessage(ChatColor.RED +
+					 * "You do not have access to that command."); return true;
+					 * } } if (arg.equalsIgnoreCase("debug")) { if
+					 * (player.hasPermission("simplepvp.admin")) {
+					 * player.sendMessage("Red respawning:");
+					 * player.sendMessage(playersRespawningRed.toString());
+					 * player.sendMessage("Blue respawning:");
+					 * player.sendMessage(playersRespawningBlue.toString());
+					 * player.sendMessage("Is playing: " + isPlaying); return
+					 * true; } }
+					 * 
+					 * if (arg.equalsIgnoreCase("updatemaxplayers")) { if
+					 * (player.hasPermission("simplepvp.admin")) {
+					 * player.sendMessage(header +
+					 * "Changing config for maxplayers..."); Set<String>
+					 * mapNamesFromConfig = ((ConfigurationSection)
+					 * config.get("maps")).getKeys(false);
+					 * player.sendMessage(header +
+					 * mapNamesFromConfig.toString()); Iterator<String>
+					 * mapNamesItr = mapNamesFromConfig.iterator(); while
+					 * (mapNamesItr.hasNext()) { String tempMapName =
+					 * mapNamesItr.next().toString(); if
+					 * (config.contains("maps." + tempMapName + ".maxPlayers"))
+					 * { config.set("maps." + tempMapName + ".maxplayers",
+					 * config.get("maps." + tempMapName + ".maxPlayers"));
+					 * config.set("maps." + tempMapName + ".maxPlayers", null);
+					 * } } saveConfig(); return true; } }
+					 * 
+					 * if (arg.equalsIgnoreCase("updatetypes")) { if
+					 * (player.hasPermission("simplepvp.admin")) {
+					 * player.sendMessage(header + "Nothing to update...");
+					 * Set<String> mapNamesFromConfig = ((ConfigurationSection)
+					 * config.get("maps")).getKeys(false);
+					 * player.sendMessage(header +
+					 * mapNamesFromConfig.toString()); Iterator<String>
+					 * mapNamesItr = mapNamesFromConfig.iterator(); while
+					 * (mapNamesItr.hasNext()) { String tempMapName =
+					 * mapNamesItr.next().toString(); if
+					 * (!config.contains("maps." + tempMapName +
+					 * ".forcepvpchat")) { config.set("maps." + tempMapName +
+					 * ".forcepvpchat", "enabled"); } if
+					 * (!config.contains("maps." + tempMapName +
+					 * ".outofboundsarea")) { config.set("maps." + tempMapName +
+					 * ".outofboundsarea", "disabled"); } } saveConfig(); return
+					 * true; } }
+					 * 
+					 * if (arg.equalsIgnoreCase("reload")) { if
+					 * (player.hasPermission("simplepvp.admin")) {
+					 * Bukkit.getPluginManager().disablePlugin(this);
+					 * Bukkit.getPluginManager().enablePlugin(this);
+					 * player.sendMessage(ChatColor.GRAY +
+					 * "SimplePvP has been reloaded..."); return true; } }
+					 * if(arg.equalsIgnoreCase("purgeplayers")){
+					 * if(player.hasPermission("simplepvp.admin")){
+					 * ArrayList<String> purgeList = new ArrayList<String>();
+					 * for(String playerName: red){
+					 * if(getServer().getPlayer(playerName) == null){
+					 * purgeList.add(playerName); player.sendMessage("Removing "
+					 * + playerName + " from team red!"); } }
+					 * red.removeAll(purgeList); purgeList.clear(); for(String
+					 * playerName: blue){ if(getServer().getPlayer(playerName)
+					 * == null){ purgeList.add(playerName);
+					 * player.sendMessage("Removing " + playerName +
+					 * " from team blue!"); } } blue.removeAll(purgeList);
+					 * purgeList.clear(); for(String playerName: spectate){
+					 * if(getServer().getPlayer(playerName) == null){
+					 * purgeList.add(playerName); player.sendMessage("Removing "
+					 * + playerName + " from team spectate!"); } }
+					 * spectate.removeAll(purgeList); purgeList.clear();
+					 * for(String playerName: playersRespawningRed){
+					 * if(getServer().getPlayer(playerName) == null){
+					 * purgeList.add(playerName); player.sendMessage("Removing "
+					 * + playerName + " from respawning red!"); } }
+					 * playersRespawningRed.removeAll(purgeList);
+					 * purgeList.clear(); for(String playerName:
+					 * playersRespawningBlue){
+					 * if(getServer().getPlayer(playerName) == null){
+					 * purgeList.add(playerName); player.sendMessage("Removing "
+					 * + playerName + " from respawning blue!"); } }
+					 * playersRespawningBlue.removeAll(purgeList);
+					 * purgeList.clear();
+					 * player.sendMessage("Purge complete..."); return true; } }
+					 */
 				}
-				
-				
+
 			} else {
 				System.out.println("[SimplePvP] This may only be used by in-game players!");
 			}

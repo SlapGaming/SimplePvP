@@ -4,22 +4,25 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import me.naithantu.SimplePVP.Settings;
 import me.naithantu.SimplePVP.SimplePVP;
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-public class AdminCommands implements CommandExecutor{
+public class AdminCommands {
 
 	SimplePVP plugin;
+
 	public AdminCommands(SimplePVP instance) {
 		plugin = instance;
 	}
-	
+
+	Settings settings;
+
 	String mapName;
 	String mapNick;
 
@@ -35,25 +38,25 @@ public class AdminCommands implements CommandExecutor{
 	List<Location> redLocation = new ArrayList<Location>();
 	List<Location> blueLocation = new ArrayList<Location>();
 	Location specLocation;
-	
-	public Location getOutOfBoundsLocation(int number){
-		if(number == 1){
+
+	public Location getOutOfBoundsLocation(int number) {
+		if (number == 1) {
 			return outOfBoundsLocation1;
-		}else if(number == 2){
+		} else if (number == 2) {
 			return outOfBoundsLocation2;
 		}
 		return null;
 	}
-	
-	public void setOutOfBoundsLocation(Location location, int number){
-		if(number == 1){
+
+	public void setOutOfBoundsLocation(Location location, int number) {
+		if (number == 1) {
 			outOfBoundsLocation1 = location;
-		}else if(number == 2){
+		} else if (number == 2) {
 			outOfBoundsLocation2 = location;
 		}
 	}
 	public void saveMap() {
-		String selectedMap = plugin.getSelectedMap();
+		String selectedMap = settings.getStringSetting("selectedMap");
 		if (selectedMap == null) {
 			if (plugin.getServer().getPlayer("naithantu") != null) {
 				plugin.getServer().getPlayer("naithantu").sendMessage("Error occured while saving map! (794)");
@@ -104,20 +107,19 @@ public class AdminCommands implements CommandExecutor{
 		plugin.saveTypes();
 		plugin.saveConfig();
 	}
-	
-	@Override
-	public boolean onCommand(CommandSender sender, Command cmd, String cmdLabel, String[] args) {
+
+	public boolean adminCommandHandler(CommandSender sender, Command cmd, String cmdLabel, String[] args) {
+		settings = plugin.getSettings();
 		Player player = (Player) sender;
 		String arg = args[0];
 		String header = plugin.getHeader();
 
 		//Get some often used variables from main class.
 		HashMap<String, String> maps = plugin.getMaps();
-		
-		
+
 		if (arg.equalsIgnoreCase("create")) {
 			if (player.hasPermission("simplepvp.create") || player.hasPermission("simplepvp.admin")) {
-				if (plugin.getIsPlaying() == true) {
+				if (settings.getBooleanSetting("isPlaying") == true) {
 					player.sendMessage(header + "Error: There is game playing. Stop this game with /pvp stop first!");
 					return true;
 				}
@@ -132,7 +134,7 @@ public class AdminCommands implements CommandExecutor{
 								mapName = arg;
 								mapNick = null;
 							}
-							plugin.setSelectedMap(arg.toLowerCase());
+							settings.setStringSetting("selectedMap", arg.toLowerCase());
 							plugin.creation = 1;
 							player.sendMessage(header + "Next: Make a spawnlocation for team red. Type /pvp setpos when there.");
 							return true;
@@ -161,7 +163,7 @@ public class AdminCommands implements CommandExecutor{
 
 		if (arg.equalsIgnoreCase("setpos")) {
 			if (player.hasPermission("simplepvp.create") || player.hasPermission("simplepvp.admin")) {
-				String selectedMap = plugin.getSelectedMap();
+				String selectedMap = settings.getStringSetting("selectedMap");
 				if (plugin.creation == 1) {
 					redLocation.add(player.getLocation());
 					player.sendMessage(header + "Next: Make a spawnlocation for team blue. Type /pvp setpos when there.");
@@ -193,7 +195,7 @@ public class AdminCommands implements CommandExecutor{
 					plugin.creation = 0;
 					plugin.setConfigLocation("maps." + selectedMap + ".gamemodevars.redflaglocation", redFlagLocation);
 					plugin.setConfigLocation("maps." + selectedMap + ".gamemodevars.blueflaglocation", blueFlagLocation);
-					plugin.setGameMode("ctf");
+					settings.setStringSetting("gameMode", "ctf");
 					player.sendMessage(header + "Red and blue flag locations made. Gamemode changed to CTF!");
 					plugin.saveTypes();
 					// End of CTF plugin.creation. Next: dth location.
@@ -201,7 +203,7 @@ public class AdminCommands implements CommandExecutor{
 					dthLocation = player.getLocation();
 					plugin.creation = 0;
 					plugin.setConfigLocation("maps." + selectedMap + ".gamemodevars.dthlocation", dthLocation);
-					plugin.setGameMode("dth");
+					settings.setStringSetting("gameMode", "dth");
 					player.sendMessage(header + "Dth location made. Gamemode changed to DTH!");
 					plugin.saveTypes();
 					//End of dth plugin.creation. Next: out of bounds plugin.creation.
@@ -232,7 +234,7 @@ public class AdminCommands implements CommandExecutor{
 					}
 					plugin.setConfigLocation("maps." + selectedMap + ".outofboundslocation1", outOfBoundsLocation1);
 					plugin.setConfigLocation("maps." + selectedMap + ".outofboundslocation2", outOfBoundsLocation2);
-					plugin.setOutOfBoundsArea("enabled");
+					settings.setBooleanSetting("outOfBoundsArea", true);
 					player.sendMessage(header + "Out of bounds area enabled!");
 					plugin.creation = 0;
 					plugin.saveTypes();
@@ -247,7 +249,7 @@ public class AdminCommands implements CommandExecutor{
 					plugin.setConfigLocation("maps." + selectedMap + ".gamemodevars.redstonelocation1", tempLocation1);
 					plugin.setConfigLocation("maps." + selectedMap + ".gamemodevars.redstonelocation2", tempLocation2);
 					plugin.creation = 0;
-					plugin.setGameMode("redstone");
+					settings.setStringSetting("gameMode", "redstone");
 					plugin.saveTypes();
 					//End of redstone plugin.creation.
 				} else {
