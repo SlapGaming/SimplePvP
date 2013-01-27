@@ -41,6 +41,12 @@ public class DeathListener implements Listener {
 						+ " Dollars!");
 				SimplePVP.econ.withdrawPlayer(player.getName(), settings.getIntSetting("deathTypePay"));
 			}
+
+			//Add death and kill.
+			plugin.getPlayerScores().get(player.getName()).addDeath();
+			if (player.getKiller() != null)
+				plugin.getPlayerScores().get(player.getKiller().getName()).addKill();
+
 			// Drop the items.
 			if (settings.getBooleanSetting("deathTypeDrop") == false) {
 				event.setDroppedExp(0);
@@ -76,7 +82,7 @@ public class DeathListener implements Listener {
 			// "You did not have enough money, you lost your items and experience!");
 			// }
 
-			// Gamemodes (tdm. ctf. lms)
+			// Gamemodes (tdm. ctf. lms. ffa.)
 			if (settings.getStringSetting("gameMode").equals("tdm")) {
 				if (player.getKiller() == null) {
 					return;
@@ -142,15 +148,20 @@ public class DeathListener implements Listener {
 					plugin.getPlayersRespawningBlue().clear();
 					plugin.nextRound();
 				}
+			} else if (settings.getStringSetting("gameMode").equals("ffa")) {
+				if (player.getKiller() == null) {
+					return;
+				}
+				if (plugin.getPlayerScores().get(player.getKiller().getName()).getKills() > settings.getIntSetting("scoreLimit")) {
+					plugin.sendMessageAll(header + player.getKiller().getName() + " won!");
+					plugin.stop();
+				}
+			} else if (settings.getStringSetting("gameMode").equals("juggernaut")) {
+
 			}
 			//Death Messages
 			plugin.sendMessageAll(event.getDeathMessage());
 			event.setDeathMessage(null);
-
-			//Add death and kill.
-			plugin.getPlayerScores().get(player.getName()).addDeath();
-			if(player.getKiller() != null)
-				plugin.getPlayerScores().get(player.getKiller().getName()).addKill();
 
 			plugin.setRed(red);
 			plugin.setBlue(blue);

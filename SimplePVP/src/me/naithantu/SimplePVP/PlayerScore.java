@@ -1,8 +1,8 @@
 package me.naithantu.SimplePVP;
 
-public class PlayerScore {
+public class PlayerScore extends PVPPlayer {
 
-	String name = null;
+	String name;
 	int kills = 0;
 	int deaths = 0;
 	int score = 0;
@@ -19,16 +19,12 @@ public class PlayerScore {
 
 	public void addDeath() {
 		deaths++;
+		killStreak = 0;
 	}
 
 	public void addScore() {
 		score++;
 	}
-	
-	public void stopKillStreak() {
-		killStreak = 0;
-	}
-	
 	
 
 	public int getKills() {

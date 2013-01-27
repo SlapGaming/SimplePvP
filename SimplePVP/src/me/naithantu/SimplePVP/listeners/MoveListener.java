@@ -7,6 +7,7 @@ import me.naithantu.SimplePVP.Settings;
 import me.naithantu.SimplePVP.SimplePVP;
 import me.naithantu.SimplePVP.commands.AdminCommands;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -15,6 +16,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 public class MoveListener implements Listener {
 
@@ -29,15 +31,11 @@ public class MoveListener implements Listener {
 		plugin = instance;
 	}
 
-	MoveListener(AdminCommands instance) {
-		adminCommands = instance;
-	}
-
 	String header = ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "";
 
 	@EventHandler
 	public void onPlayerMove(PlayerMoveEvent event) {
-
+		adminCommands = plugin.getAdminCommands();
 		settings = plugin.getSettings();
 		List<String> blue = plugin.getBlue();
 		List<String> red = plugin.getRed();

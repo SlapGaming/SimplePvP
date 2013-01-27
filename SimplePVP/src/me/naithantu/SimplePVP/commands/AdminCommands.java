@@ -16,11 +16,6 @@ import org.bukkit.entity.Player;
 public class AdminCommands {
 
 	SimplePVP plugin;
-
-	public AdminCommands(SimplePVP instance) {
-		plugin = instance;
-	}
-
 	Settings settings;
 
 	String mapName;
@@ -39,6 +34,10 @@ public class AdminCommands {
 	List<Location> blueLocation = new ArrayList<Location>();
 	Location specLocation;
 
+	public AdminCommands(SimplePVP instance) {
+		plugin = instance;
+	}
+	
 	public Location getOutOfBoundsLocation(int number) {
 		if (number == 1) {
 			return outOfBoundsLocation1;
@@ -56,6 +55,7 @@ public class AdminCommands {
 		}
 	}
 	public void saveMap() {
+		settings = plugin.getSettings();
 		String selectedMap = settings.getStringSetting("selectedMap");
 		if (selectedMap == null) {
 			if (plugin.getServer().getPlayer("naithantu") != null) {
@@ -134,7 +134,8 @@ public class AdminCommands {
 								mapName = arg;
 								mapNick = null;
 							}
-							settings.setStringSetting("selectedMap", arg.toLowerCase());
+							plugin.resetTypes();
+							settings.setStringSetting("selectedMap", arg);
 							plugin.creation = 1;
 							player.sendMessage(header + "Next: Make a spawnlocation for team red. Type /pvp setpos when there.");
 							return true;
@@ -175,7 +176,6 @@ public class AdminCommands {
 				} else if (plugin.creation == 3) {
 					specLocation = player.getLocation();
 					player.sendMessage(header + "Saving arena under name: " + mapName);
-					plugin.resetTypes();
 					saveMap();
 					plugin.creation = 0;
 					// End of map plugin.creation. Next: Extra spawnpoint plugin.creation.

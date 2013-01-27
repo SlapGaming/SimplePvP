@@ -210,6 +210,11 @@ public class PlayerCommands {
 					if (!red.contains(player.getName()) && !blue.contains(player.getName()) && !spectate.contains(player.getName())) {
 						if (plugin.checkInventory(player) == true) {
 							spectate.add(player.getName());
+							//Force pvp join if enabled
+							if (settings.getBooleanSetting("forcePvpChat") == true) {
+								plugin.getAllChat().add(player.getName());
+								player.sendMessage(header + "You joined the all chat channel!");
+							}
 							player.teleport(plugin.getConfigLocation(settings.getStringSetting("selectedMap"), "speclocation"));
 							player.sendMessage(header + "You are now spectating! Enjoy!");
 						} else {

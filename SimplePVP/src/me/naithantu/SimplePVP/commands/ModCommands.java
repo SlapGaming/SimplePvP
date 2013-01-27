@@ -19,11 +19,11 @@ public class ModCommands {
 	SimplePVP plugin;
 
 	Settings settings;
-	
-	public ModCommands(SimplePVP instance){
+
+	public ModCommands(SimplePVP instance) {
 		plugin = instance;
 	}
-	
+
 	public boolean modCommandHandler(CommandSender sender, Command cmd, String cmdLabel, String[] args) {
 		settings = plugin.getSettings();
 		String arg = args[0];
@@ -126,6 +126,8 @@ public class ModCommands {
 									return true;
 								}
 								settings.setStringSetting("gameMode", "redstone");
+							} else if (arg2.equals("ffa")) {
+								settings.setStringSetting("gameMode", "ffa");
 							} else {
 								plugin.sendTypes(player);
 								return true;
@@ -266,9 +268,11 @@ public class ModCommands {
 						if (arg.equals("redinventory")) {
 							plugin.redInv = player.getInventory().getContents();
 							plugin.removeEmptyInvSlotsRed(plugin.redInv);
+							plugin.saveItemsRed(plugin.redInv);
 						} else if (arg.equals("blueinventory")) {
 							plugin.blueInv = player.getInventory().getContents();
 							plugin.removeEmptyInvSlotsBlue(plugin.blueInv);
+							plugin.saveItemsBlue(plugin.blueInv);
 						} else if (arg.equals("redarmour")) {
 							plugin.getArmourRed(player);
 						} else if (arg.equals("bluearmour")) {
@@ -327,8 +331,9 @@ public class ModCommands {
 					//settings.setBooleanSetting("allowJoin", true);
 					if (settings.getStringSetting("joinType").equals("freejoin")) {
 						plugin.getServer().broadcastMessage(
-								header + "Type " + ChatColor.AQUA + "/pvp join " + ChatColor.WHITE + "to join map " + ChatColor.translateAlternateColorCodes('&', plugin.getMaps().get(settings.getStringSetting("selectedMap")))
-										+ " (Gamemode: " + settings.getStringSetting("gameMode") + ")!"); //TODO
+								header + "Type " + ChatColor.AQUA + "/pvp join " + ChatColor.WHITE + "to join map "
+										+ ChatColor.translateAlternateColorCodes('&', plugin.getMaps().get(settings.getStringSetting("selectedMap"))) + ChatColor.WHITE + " (Gamemode: "
+										+ settings.getStringSetting("gameMode") + ")!"); //TODO
 
 					} else if (settings.getStringSetting("joinType").equals("invite")) {
 						player.sendMessage(header + "Type /pvp invite [player] to invite players to join " + settings.getStringSetting("selectedMap") + "!");
@@ -444,7 +449,8 @@ public class ModCommands {
 					Player invitedPlayer = plugin.getServer().getPlayer(args[1]);
 					if (!(invitedPlayer == null)) {
 						plugin.invites.add(invitedPlayer.getName());
-						invitedPlayer.sendMessage(header + "You have been invited! Type /pvp join to join map " + settings.getStringSetting("selectedMap") + " (Gamemode: " + settings.getStringSetting("gameMode") + ")!");
+						invitedPlayer.sendMessage(header + "You have been invited! Type /pvp join to join map " + settings.getStringSetting("selectedMap") + " (Gamemode: "
+								+ settings.getStringSetting("gameMode") + ")!");
 						player.sendMessage(header + "Invited player " + invitedPlayer.getName() + "!");
 					} else {
 						player.sendMessage(header + "Error: That player is not online!");

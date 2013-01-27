@@ -15,16 +15,16 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent.DamageCause;
 
-public class DamageListener  implements Listener{
+public class DamageListener implements Listener {
 
 	SimplePVP plugin;
 	Settings settings;
 	AdminCommands adminCommands;
-	
-	public DamageListener(SimplePVP instance){
+
+	public DamageListener(SimplePVP instance) {
 		plugin = instance;
 	}
-	
+
 	String header = ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "";
 
 	@EventHandler
@@ -81,9 +81,11 @@ public class DamageListener  implements Listener{
 			}
 
 			//Friendly fire for arrows.
-			if (red.contains(playerName) && red.contains(shooterName) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")) {
+			if (red.contains(playerName) && red.contains(shooterName) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")
+					&& !settings.getStringSetting("gameMode").equals("ffa")) {
 				event.setCancelled(true);
-			} else if (blue.contains(playerName) && blue.contains(shooterName) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")) {
+			} else if (blue.contains(playerName) && blue.contains(shooterName) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")
+					&& !settings.getStringSetting("gameMode").equals("ffa")) {
 				event.setCancelled(true);
 			}
 		} else {
@@ -106,9 +108,11 @@ public class DamageListener  implements Listener{
 
 			//Friendly fire for normal damage
 			Player damager = (Player) event.getDamager();
-			if (red.contains(playerName) && red.contains(damager.getName()) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")) {
+			if (red.contains(playerName) && red.contains(damager.getName()) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")
+					&& !settings.getStringSetting("gameMode").equals("ffa")) {
 				event.setCancelled(true);
-			} else if (blue.contains(playerName) && blue.contains(damager.getName()) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")) {
+			} else if (blue.contains(playerName) && blue.contains(damager.getName()) && settings.getBooleanSetting("friendlyFire") == false && !settings.getStringSetting("gameMode").equals("lms")
+					&& !settings.getStringSetting("gameMode").equals("ffa")) {
 				event.setCancelled(true);
 			}
 		}

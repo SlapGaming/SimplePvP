@@ -12,6 +12,7 @@ import java.util.Set;
 import me.naithantu.SimplePVP.commands.AdminCommands;
 import me.naithantu.SimplePVP.commands.ModCommands;
 import me.naithantu.SimplePVP.commands.PlayerCommands;
+import me.naithantu.SimplePVP.listeners.CartListener;
 import me.naithantu.SimplePVP.listeners.ChatListener;
 import me.naithantu.SimplePVP.listeners.DamageListener;
 import me.naithantu.SimplePVP.listeners.DeathListener;
@@ -22,6 +23,7 @@ import me.naithantu.SimplePVP.listeners.RedstoneListener;
 import me.naithantu.SimplePVP.listeners.RespawnListener;
 import net.milkbowl.vault.economy.Economy;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -30,6 +32,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
@@ -37,8 +40,12 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Vector;
 
 public class SimplePVP extends JavaPlugin {
+
+	//TODO
+	public Minecart m;
 
 	PlayerCommands playerCommandHandler = new PlayerCommands(this);
 	ModCommands modCommandHandler = new ModCommands(this);
@@ -58,6 +65,7 @@ public class SimplePVP extends JavaPlugin {
 	public final QuitListener quitListener = new QuitListener(this);
 	public final RedstoneListener redstoneListener = new RedstoneListener(this);
 	public final RespawnListener respawnListener = new RespawnListener(this);
+	public final CartListener cartListener = new CartListener(this);
 
 	String header = ChatColor.DARK_RED + "[PvP] " + ChatColor.WHITE + "";
 
@@ -178,6 +186,9 @@ public class SimplePVP extends JavaPlugin {
 	public List<String> getPlayersRespawningRed() {
 		return playersRespawningRed;
 	}
+	public AdminCommands getAdminCommands() {
+		return adminCommandHandler;
+	}
 	public List<String> getPlayersRespawningBlue() {
 		return playersRespawningBlue;
 	}
@@ -231,6 +242,7 @@ public class SimplePVP extends JavaPlugin {
 		pm.registerEvents(this.quitListener, this);
 		pm.registerEvents(this.redstoneListener, this);
 		pm.registerEvents(this.respawnListener, this);
+		//pm.registerEvents(this.cartListener, this); //TODO Enable cart listener later.
 		settings.resetSettings();
 	}
 
@@ -401,7 +413,7 @@ public class SimplePVP extends JavaPlugin {
 			return;
 		}
 		roundTimer = getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
-			Integer timeLeft = settings.getIntSetting("roundtime");
+			Integer timeLeft = settings.getIntSetting("roundTime");
 
 			public void run() {
 				timeLeft--;
@@ -433,9 +445,13 @@ public class SimplePVP extends JavaPlugin {
 
 	}
 	public void stop() {
+		System.out.println("[SimplePVP Debug]: 1 - |||Ignore The Following Messages|||");
 		getServer().getScheduler().cancelTasks(this);
+		System.out.println("[SimplePVP Debug]: 2");
 		removeDeadAfterGame();
+		System.out.println("[SimplePVP Debug]: 3");
 		teleportAll("spawn");
+		System.out.println("[SimplePVP Debug]: 4");
 		if (redScore > blueScore) {
 			sendMessageAll(header + "You have been teleported to spawn, the game has been won by team red!");
 		} else if (blueScore > redScore) {
@@ -443,16 +459,23 @@ public class SimplePVP extends JavaPlugin {
 		} else {
 			sendMessageAll(header + "You have been teleported to spawn, the game ended in a tie!");
 		}
+		System.out.println("[SimplePVP Debug]: 5");
 		teamChat.clear();
 		allChat.clear();
+		System.out.println("[SimplePVP Debug]: 6");
 		emptyAllInventories();
+		System.out.println("[SimplePVP Debug]: 7");
 		offlineRed.clear();
 		offlineBlue.clear();
+		System.out.println("[SimplePVP Debug]: 8");
 		spectate.clear();
 		red.clear();
 		blue.clear();
+		System.out.println("[SimplePVP Debug]: 9");
 		resetTypes();
+		System.out.println("[SimplePVP Debug]: 10");
 		settings.setBooleanSetting("isPlaying", false);
+		System.out.println("[SimplePVP Debug]: 11 - |||Game Stopped Succesfully - No More Debug|||");
 	}
 	public void nextRound() {
 		betweenRounds = true;
@@ -554,6 +577,7 @@ public class SimplePVP extends JavaPlugin {
 			}
 			configItemList.add(type + ":" + amount + ":" + data + ":" + tempArrayList);
 		}
+		getServer().broadcastMessage(configItemList.toString());
 		config.set("maps." + settings.getStringSetting("selectedMap") + ".redinv", configItemList);
 		saveConfig();
 	}
@@ -914,8 +938,6 @@ public class SimplePVP extends JavaPlugin {
 			setConfigLocation("maps." + selectedMap + ".outofboundslocation2", adminCommandHandler.getOutOfBoundsLocation(2));
 		}
 		saveMapNames();
-		saveItemsRed(redInv);
-		saveItemsBlue(blueInv);
 		saveConfig();
 	}
 	public void sendTypes(Player player) {
@@ -1394,7 +1416,7 @@ public class SimplePVP extends JavaPlugin {
 		if (commandLabel.equalsIgnoreCase("leave")) {
 			final Player player = (Player) sender;
 			if (player.hasPermission("simplepvp.leave")) {
-				if (player.getWorld().getName().equalsIgnoreCase("world_pvp")) {
+				if (player.getWorld().getName().equalsIgnoreCase("world_pvp") || player.getWorld().getName().equalsIgnoreCase("world_nether")) {
 					if (red.contains(player.getName()) || blue.contains(player.getName()) || spectate.contains(player.getName())) {
 						player.sendMessage(header + "Error: You are in a game. Type /pvp leave to leave pvp!");
 						return true;
@@ -1402,7 +1424,7 @@ public class SimplePVP extends JavaPlugin {
 					if (!pvpTimer.contains(player.getName())) {
 						pvpWorld.add(player.getName());
 						pvpTimer.add(player.getName());
-						player.sendMessage(header + "Leaving the pvp world in 10 seconds!");
+						player.sendMessage(header + "Teleporting to spawn in 10 seconds!");
 						getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
 							public void run() {
 								if (pvpWorld.contains(player.getName())) {
@@ -1449,7 +1471,7 @@ public class SimplePVP extends JavaPlugin {
 							return adminCommandHandler.adminCommandHandler(sender, cmd, commandLabel, args);
 					}
 
-					Player player = (Player) sender;
+					final Player player = (Player) sender;
 					if (arg.equalsIgnoreCase("getscore")) {
 						if (!player.hasPermission("simplepvp.admin")) {
 							return false;
@@ -1464,6 +1486,28 @@ public class SimplePVP extends JavaPlugin {
 									+ playerScores.get(playerName).getDeaths());
 						}
 						return true;
+					}
+
+					if (arg.equalsIgnoreCase("spawncart")) {
+						World w = player.getWorld();
+						m = w.spawn(player.getLocation(), Minecart.class);
+						//TODO
+						getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
+							public void run() {
+								boolean goingToMove = false;
+								for(Player player: getServer().getOnlinePlayers()){
+									if (player.getLocation().distance(m.getLocation()) < 5) {
+										m.setVelocity(new Vector(0.01, 0, 0));
+										goingToMove = true;
+										Bukkit.getServer().broadcastMessage("Moving cart!");
+									}
+								}
+								if(goingToMove == false){
+									m.setVelocity(new Vector(0, 0, 0));
+									Bukkit.getServer().broadcastMessage("Stopping!");
+								}
+							}
+						}, 1, 1);
 					}
 					/*
 					 * if (arg.equalsIgnoreCase("team")) { if
